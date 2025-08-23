@@ -1,114 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'screens/home_screen.dart';
+import 'providers/theme_provider.dart';
 
-void main() {
-  runApp(
-    ChangeNotifierProvider(
-      create: (context) => ThemeModel(),
-      child: const MyApp(),
-    ),
-  );
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]).then((
+    _,
+  ) {
+    runApp(const MainApp());
+  });
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MainApp extends StatelessWidget {
+  const MainApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final themeModel = Provider.of<ThemeModel>(context);
-    return MaterialApp(
-      theme: themeModel.isDark ? ThemeData.dark() : ThemeData.light(),
-      home: const MyHomePage(),
-    );
-  }
-}
-
-class ThemeModel with ChangeNotifier {
-  bool _isDark = false;
-
-  bool get isDark => _isDark;
-
-  void toggleTheme() {
-    _isDark = !_isDark;
-    notifyListeners();
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ephemeral vs App State Demo'),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'App State',
-                  style: TextStyle(fontSize: 11,fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(width: 8),
-                Consumer<ThemeModel>(
-                  builder: (context, themeProvider, child) {
-                    return Switch(
-                      value: themeProvider.isDark,
-                      onChanged: (value) {
-                        themeProvider.toggleTheme();
-                      },
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'Ephemeral State',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'You have pushed this button many times:',
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.displayLarge,
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton.icon(
-              onPressed: _incrementCounter,
-              icon: const Icon(Icons.add),
-              label: const Text('Increment'),
-            ),
-          ],
-        ),
+    return ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: ScreenUtilInit(
+        designSize: const Size(412, 715),
+        minTextAdapt: true,
+        splitScreenMode: true,
+        builder: (build, child) {
+          final themeModel = build.watch<ThemeProvider>();
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData.light(),
+            darkTheme: ThemeData.dark(),
+            themeMode: themeModel.isDark ? ThemeMode.dark : ThemeMode.light,
+            title: 'Blog App',
+            initialRoute: '/home',
+            routes: {'/home': (context) => const HomeScreen()},
+          );
+        },
       ),
     );
   }
