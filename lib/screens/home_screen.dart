@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import 'article_screen.dart';
+import 'settings_screen.dart';
 import '../widgets/custom_text.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -29,9 +30,18 @@ class _HomeScreenState extends State<HomeScreen> {
           fontWeight: FontWeight.w600,
         ),
         actions: [
-          Switch(
-            value: themeModel.isDark,
-            onChanged: (_) => themeModel.toggleTheme(),
+          IconButton(
+            icon: Icon(
+              Icons.settings_outlined,
+              size: 24.sp,
+            ),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -40,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: const <Widget>[
           ArticleScreen(),
           Placeholder(),
-          Placeholder(),
+          SettingsScreen(),
         ],
         onPageChanged: (page) {
           setState(() {

@@ -6,14 +6,25 @@ class ArticleService {
   List listData = [];
 
   Future<List> getAllArticle() async {
-    Response response = await get(Uri.parse('$host/posts'));
+    print('ArticleService: Host is: $host');
+    print('ArticleService: Making request to: $host/api/articles');
+    
+    Response response = await get(Uri.parse('$host/api/articles'));
+    print('ArticleService: Response status: ${response.statusCode}');
+    print('ArticleService: Response body: ${response.body}');
 
     if (response.statusCode == 200) {
-      listData = jsonDecode(response.body);
-
-      return listData;
+      final jsonResponse = jsonDecode(response.body);
+      print('ArticleService: Parsed response: $jsonResponse');
+      
+      if (jsonResponse['success'] == true && jsonResponse['data'] != null) {
+        print('ArticleService: Returning ${jsonResponse['data'].length} articles');
+        return jsonResponse['data'];
+      } else {
+        throw Exception('Invalid response format');
+      }
     } else {
-      throw Exception('Failed to load data');
+      throw Exception('Failed to load data: ${response.statusCode}');
     }
   }
 }

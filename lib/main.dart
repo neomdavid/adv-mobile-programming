@@ -10,9 +10,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]).then((
     _,
-  ) {
+  ) async {
+              await dotenv.load(fileName: 'assets/.env');
     runApp(const MainApp());
-  });
+  }); 
 }
 
 class MainApp extends StatelessWidget {
@@ -22,20 +23,22 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => ThemeProvider(),
-      child: ScreenUtilInit(
-        designSize: const Size(412, 715),
-        minTextAdapt: true,
-        splitScreenMode: true,
-        builder: (build, child) {
-          final themeModel = build.watch<ThemeProvider>();
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            theme: ThemeData.light(),
-            darkTheme: ThemeData.dark(),
-            themeMode: themeModel.isDark ? ThemeMode.dark : ThemeMode.light,
-            title: 'Blog App',
-            initialRoute: '/home',
-            routes: {'/home': (context) => const HomeScreen()},
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return ScreenUtilInit(
+            designSize: const Size(412, 715),
+            minTextAdapt: true,
+            splitScreenMode: true,
+            builder: (context, child) {
+              return MaterialApp(
+                debugShowCheckedModeBanner: false,
+                theme: ThemeData.light(),
+                darkTheme: ThemeData.dark(),
+                themeMode: themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
+                title: 'Blog App',
+                home: const HomeScreen(),
+              );
+            },
           );
         },
       ),
