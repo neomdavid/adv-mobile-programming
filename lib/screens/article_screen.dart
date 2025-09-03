@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../models/article_model.dart';
 import '../services/article_service.dart';
 import '../widgets/custom_text.dart';
+import '../widgets/add_article_dialog.dart';
 import 'detail_screen.dart';
 
 class ArticleScreen extends StatefulWidget {
@@ -13,7 +14,6 @@ class ArticleScreen extends StatefulWidget {
 }
 
 class _ArticleScreenState extends State<ArticleScreen> {
-  late Future<List<Article>> _futureArticles;
   late Future<void> loadFuture;
   final TextEditingController _searchController = TextEditingController();
   List<Article> _allArticles = [];
@@ -27,8 +27,7 @@ class _ArticleScreenState extends State<ArticleScreen> {
   }
 
   void _loadArticles() {
-    _futureArticles = _getAllArticles();
-    loadFuture = _getAllArticles().then((_) {});
+    loadFuture = _getAllArticles();
   }
 
   Future<List<Article>> _getAllArticles() async {
@@ -51,110 +50,19 @@ class _ArticleScreenState extends State<ArticleScreen> {
   }
 
   Future<void> _openAddArticleDialog() async {
-    final titleController = TextEditingController();
-    final authorController = TextEditingController();
-    final contentController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    bool isSaving = false;
-    bool isActive = true;
-
     await showDialog<void>(
       context: context,
-      barrierDismissible: !isSaving,
-      builder: (BuildContext ctx) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setLocalState) {
-            List<String> _toList(String raw) {
-              // Split by newlines or commas, trim, drop empties
-              return raw
-                  .split(RegExp(r'[\n,]'))
-                  .map((s) => s.trim())
-                  .where((s) => s.isNotEmpty)
-                  .toList();
-            }
-
-            return AlertDialog(
-              title: const Text('Add Article'),
-              content: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: titleController,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Title',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Required' : null,
-                      ),
-                      SizedBox(height: 12.h),
-                      TextFormField(
-                        controller: authorController,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Author / Name',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Required' : null,
-                      ),
-                      SizedBox(height: 12.h),
-                      TextFormField(
-                        controller: contentController,
-                        minLines: 3,
-                        maxLines: 6,
-                        decoration: const InputDecoration(
-                          labelText:
-                              'Content (one item per line or comma-separated)',
-                          border: OutlineInputBorder(),
-                          alignLabelWithHint: true,
-                        ),
-                        validator: (v) {
-                          final items = _toList(v ?? '');
-                          return items.isEmpty
-                              ? 'At least one content item'
-                              : null;
-                        },
-                      ),
-                      SizedBox(height: 8.h),
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Active'),
-                        value: isActive,
-                        activeColor: Colors.green.shade400,
-                        activeTrackColor: Colors.green.shade400,
-                        thumbColor: MaterialStateProperty.all(Colors.white),
-                        onChanged: (val) => setLocalState(() => isActive = val),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSaving ? null : () => Navigator.of(ctx).pop(),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: isSaving ? null : () => save(),
-                  icon: const Icon(Icons.save),
-                  label: const Text('Save'),
-                ),
-              ],
-            );
+      builder: (BuildContext context) {
+        return AddArticleDialog(
+          onArticleAdded: () {
+            // Refresh the articles list when a new article is added
+            setState(() {
+              loadFuture = _getAllArticles();
+            });
           },
         );
       },
     );
-  }
-
-  Future<void> save() async {
-    // This function will be called from within the dialog context
-    // where the variables are properly defined
   }
 
   Widget _statusChip(bool active) {
@@ -307,6 +215,12 @@ class _ArticleScreenState extends State<ArticleScreen> {
                             MaterialPageRoute(
                               builder: (context) => DetailScreen(
                                 article: article,
+                                onArticleUpdated: () {
+                                  // Refresh the articles list when article is updated
+                                  setState(() {
+                                    loadFuture = _getAllArticles();
+                                  });
+                                },
                               ),
                             ),
                           );

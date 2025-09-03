@@ -18,6 +18,12 @@ class ArticleService {
       print('ArticleService: Parsed response: $jsonResponse');
 
       // Handle the actual response format from your backend
+      print('ArticleService: Checking for articles field...');
+      print('ArticleService: jsonResponse keys: ${jsonResponse.keys.toList()}');
+      print(
+          'ArticleService: articles field exists: ${jsonResponse.containsKey('articles')}');
+      print('ArticleService: articles value: ${jsonResponse['articles']}');
+
       if (jsonResponse['articles'] != null) {
         print(
             'ArticleService: Returning ${jsonResponse['articles'].length} articles');
