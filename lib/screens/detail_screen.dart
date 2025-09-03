@@ -3,10 +3,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../models/article_model.dart';
 import '../widgets/custom_text.dart';
 
-class ArticleDetailsScreen extends StatelessWidget {
+class DetailScreen extends StatelessWidget {
   final Article article;
 
-  const ArticleDetailsScreen({
+  const DetailScreen({
     super.key,
     required this.article,
   });
@@ -14,12 +14,11 @@ class ArticleDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.white,
       body: CustomScrollView(
         slivers: [
-      
           SliverAppBar(
             expandedHeight: 300.h,
             floating: false,
@@ -54,7 +53,7 @@ class ArticleDetailsScreen extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: isDark 
+                    colors: isDark
                         ? [Colors.grey[900]!, Colors.black]
                         : [Colors.grey[100]!, Colors.white],
                   ),
@@ -62,7 +61,7 @@ class ArticleDetailsScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     SizedBox(height: 60.h),
-                    
+
                     // Hero Image Placeholder
                     Container(
                       width: 120.w,
@@ -84,9 +83,9 @@ class ArticleDetailsScreen extends StatelessWidget {
                         color: isDark ? Colors.grey[400] : Colors.grey[600],
                       ),
                     ),
-                    
+
                     SizedBox(height: 20.h),
-                    
+
                     // Article Title
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 24.w),
@@ -103,7 +102,7 @@ class ArticleDetailsScreen extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // Article Content
           SliverToBoxAdapter(
             child: Padding(
@@ -133,13 +132,17 @@ class ArticleDetailsScreen extends StatelessWidget {
                                 width: 40.w,
                                 height: 40.w,
                                 decoration: BoxDecoration(
-                                  color: isDark ? Colors.grey[800] : Colors.grey[200],
+                                  color: isDark
+                                      ? Colors.grey[800]
+                                      : Colors.grey[200],
                                   borderRadius: BorderRadius.circular(20.r),
                                 ),
                                 child: Icon(
                                   Icons.person_outline,
                                   size: 20.sp,
-                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                  color: isDark
+                                      ? Colors.grey[400]
+                                      : Colors.grey[600],
                                 ),
                               ),
                               SizedBox(width: 12.w),
@@ -152,7 +155,7 @@ class ArticleDetailsScreen extends StatelessWidget {
                                     fontWeight: FontWeight.w500,
                                   ),
                                   CustomText(
-                                    text: 'User ${article.userId}',
+                                    text: article.name,
                                     fontSize: 14.sp,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -161,24 +164,39 @@ class ArticleDetailsScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        
-                        // Date Info
+
+                        // Status Info
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 16.w, vertical: 8.h),
                           decoration: BoxDecoration(
-                            color: isDark ? Colors.grey[800] : Colors.grey[200],
+                            color: article.isActive
+                                ? (isDark
+                                    ? Colors.green[800]
+                                    : Colors.green[100])
+                                : (isDark
+                                    ? Colors.grey[800]
+                                    : Colors.grey[200]),
                             borderRadius: BorderRadius.circular(20.r),
                           ),
                           child: Row(
                             children: [
                               Icon(
-                                Icons.calendar_today_outlined,
+                                article.isActive
+                                    ? Icons.check_circle
+                                    : Icons.cancel,
                                 size: 16.sp,
-                                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                color: article.isActive
+                                    ? (isDark
+                                        ? Colors.green[400]
+                                        : Colors.green[600])
+                                    : (isDark
+                                        ? Colors.grey[400]
+                                        : Colors.grey[600]),
                               ),
                               SizedBox(width: 8.w),
                               CustomText(
-                                text: _formatDate(article.createdAt ?? ''),
+                                text: article.isActive ? 'Active' : 'Inactive',
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -188,9 +206,9 @@ class ArticleDetailsScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  
+
                   SizedBox(height: 24.h),
-                  
+
                   // Article Content
                   CustomText(
                     text: 'Article Content',
@@ -198,7 +216,7 @@ class ArticleDetailsScreen extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                   SizedBox(height: 16.h),
-                  
+
                   Container(
                     width: double.infinity,
                     padding: EdgeInsets.all(24.w),
@@ -210,82 +228,29 @@ class ArticleDetailsScreen extends StatelessWidget {
                         width: 1,
                       ),
                     ),
-                    child: CustomText(
-                      text: article.body,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  
-                  SizedBox(height: 24.h),
-                  
-                  // Tags Section
-                  if (article.tags != null && article.tags!.isNotEmpty) ...[
-                    CustomText(
-                      text: 'Tags',
-                      fontSize: 20.sp,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    SizedBox(height: 16.h),
-                    
-                    Wrap(
-                      spacing: 12.w,
-                      runSpacing: 12.h,
-                      children: article.tags!.map((tag) {
-                        return Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 16.w,
-                            vertical: 10.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.grey[800] : Colors.grey[200],
-                            borderRadius: BorderRadius.circular(25.r),
-                            border: Border.all(
-                              color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
-                              width: 1,
-                            ),
-                          ),
-                          child: CustomText(
-                            text: '#$tag',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                  
-                  SizedBox(height: 24.h),
-                  
-                  // Last Updated
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.all(20.w),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.grey[900] : Colors.grey[50],
-                      borderRadius: BorderRadius.circular(20.r),
-                      border: Border.all(
-                        color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.update_outlined,
-                          size: 20.sp,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
-                        ),
-                        SizedBox(width: 12.w),
-                        CustomText(
-                          text: 'Last updated: ${_formatDate(article.updatedAt ?? '')}',
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        if (article.content.isNotEmpty) ...[
+                          for (int i = 0; i < article.content.length; i++) ...[
+                            if (i > 0) SizedBox(height: 16.h),
+                            CustomText(
+                              text: '${i + 1}. ${article.content[i]}',
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ],
+                        ] else ...[
+                          CustomText(
+                            text: 'No content available',
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  
+
                   SizedBox(height: 40.h),
                 ],
               ),
@@ -294,20 +259,5 @@ class ArticleDetailsScreen extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatDate(String dateString) {
-    if (dateString.isEmpty) return 'Unknown';
-    
-    try {
-      final date = DateTime.parse(dateString);
-      final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ];
-      return '${months[date.month - 1]} ${date.day}, ${date.year}';
-    } catch (e) {
-      return 'Invalid date';
-    }
   }
 }

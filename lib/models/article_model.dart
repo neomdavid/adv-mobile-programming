@@ -1,33 +1,27 @@
 class Article {
-  final int userId;
-  final int id;
+  final String aid;
+  final String name;
   final String title;
-  final String body;
-  final List<String>? tags;
-  final String? createdAt;
-  final String? updatedAt;
-  
+  final List<String> content;
+  final bool isActive;
+
   Article({
-    required this.userId,
-    required this.id,
+    required this.aid,
+    required this.name,
     required this.title,
-    required this.body,
-    this.tags,
-    this.createdAt,
-    this.updatedAt,
+    required this.content,
+    required this.isActive,
   });
 
   factory Article.fromJson(Map<String, dynamic> json) {
     return Article(
-      userId: json['userId'],
-      id: json['id'],
-      title: json['title'],
-      body: json['body'],
-      tags: json['tags'] != null 
-          ? List<String>.from(json['tags'])
-          : null,
-      createdAt: json['createdAt'],
-      updatedAt: json['updatedAt'],
+      aid: json['_id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      content: json['content'] != null
+          ? List<String>.from(json['content'].map((e) => e.toString()))
+          : <String>[],
+      isActive: json['isActive'] == true,
     );
   }
 }

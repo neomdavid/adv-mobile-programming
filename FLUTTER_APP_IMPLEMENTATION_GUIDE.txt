@@ -1,0 +1,413 @@
+FLUTTER APP IMPLEMENTATION GUIDE
+================================
+
+This guide contains all the instructions and requirements to implement the complete Flutter blog app with article management functionality.
+
+## PROJECT OVERVIEW
+A Flutter application that displays articles in a list format with search functionality, add article capability, and detailed article views. The app supports both light and dark themes.
+
+## FILE STRUCTURE
+```
+lib/
+├── main.dart                    # App entry point with theme provider
+├── models/
+│   └── article_model.dart      # Article data model
+├── providers/
+│   └── theme_provider.dart     # Theme state management
+├── screens/
+│   ├── home_screen.dart        # Main navigation screen
+│   ├── article_screen.dart     # Article list with search
+│   ├── detail_screen.dart      # Article detail view
+│   └── settings_screen.dart    # App settings and theme toggle
+├── services/
+│   └── article_service.dart    # API service for articles
+├── widgets/
+│   └── custom_text.dart        # Reusable text widget
+└── constants.dart              # App constants
+```
+
+## BACKEND REQUIREMENTS
+
+### Required API Routes:
+
+#### 1. GET /api/articles
+- **Purpose**: Fetch all articles
+- **Method**: GET
+- **Response Format**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "article_id_here",
+      "name": "Author Name",
+      "title": "Article Title",
+      "content": ["Content item 1", "Content item 2", "Content item 3"],
+      "isActive": true
+    }
+  ]
+}
+```
+
+#### 2. POST /api/articles
+- **Purpose**: Create a new article
+- **Method**: POST
+- **Request Body**:
+```json
+{
+  "title": "Article Title",
+  "name": "Author Name", 
+  "content": ["Content item 1", "Content item 2"],
+  "isActive": true
+}
+```
+- **Response Format**:
+```json
+{
+  "success": true,
+  "article": {
+    "_id": "new_article_id",
+    "name": "Author Name",
+    "title": "Article Title",
+    "content": ["Content item 1", "Content item 2"],
+    "isActive": true
+  }
+}
+```
+
+#### 3. PUT /api/articles/:id
+- **Purpose**: Update an existing article
+- **Method**: PUT
+- **URL Parameter**: :id (article ID)
+- **Request Body**: Same as POST
+- **Response Format**: Same as POST
+
+### Database Schema (MongoDB Example):
+```javascript
+{
+  _id: ObjectId,
+  name: String,        // Author/Name
+  title: String,       // Article title
+  content: [String],   // Array of content items
+  isActive: Boolean    // Article status
+}
+```
+
+## IMPLEMENTATION STEPS
+
+### Step 1: Environment Setup
+1. Create `.env` file in `assets/` folder:
+```
+HOST=http://localhost:3000
+```
+
+2. Update `pubspec.yaml`:
+```yaml
+dependencies:
+  flutter:
+    sdk: '>=3.5.0 <4.0.0'
+  flutter_dotenv: ^5.1.0
+  flutter_screenutil: ^5.9.0
+  provider: ^6.1.1
+  http: ^1.1.0
+
+flutter:
+  assets:
+    - assets/
+```
+
+### Step 2: Article Model (lib/models/article_model.dart)
+```dart
+class Article {
+  final String aid;
+  final String name;
+  final String title;
+  final List<String> content;
+  final bool isActive;
+
+  Article({
+    required this.aid,
+    required this.name,
+    required this.title,
+    required this.content,
+    required this.isActive,
+  });
+
+  factory Article.fromJson(Map<String, dynamic> json) {
+    return Article(
+      aid: json['_id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      content: json['content'] != null
+          ? List<String>.from(json['content'].map((e) => e.toString()))
+          : <String>[],
+      isActive: json['isActive'] == true,
+    );
+  }
+}
+```
+
+### Step 3: Article Service (lib/services/article_service.dart)
+```dart
+import 'dart:convert';
+import 'package:http/http.dart';
+import '../constants.dart';
+
+class ArticleService {
+  Future<List> getAllArticle() async {
+    Response response = await get(Uri.parse('$host/api/articles'));
+    
+    if (response.statusCode == 200) {
+      final jsonResponse = jsonDecode(response.body);
+      
+      if (jsonResponse['success'] == true && jsonResponse['data'] != null) {
+        return jsonResponse['data'];
+      } else {
+        throw Exception('Invalid response format');
+      }
+    } else {
+      throw Exception('Failed to load data: ${response.statusCode}');
+    }
+  }
+
+  Future<Map> createArticle(dynamic article) async {
+    Response response = await post(
+      Uri.parse('$host/api/articles'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode(article),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      Map mapData = jsonDecode(response.body);
+      return mapData;
+    } else {
+      throw Exception('Failed to create article: ${response.statusCode} - ${response.body}');
+    }
+  }
+
+  Future<Map> updateArticle(String id, dynamic article) async {
+    Response response = await put(
+      Uri.parse('$host/api/articles/$id'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode(article),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      Map mapData = jsonDecode(response.body);
+      return mapData;
+    } else {
+      throw Exception('Failed to update article: ${response.statusCode} - ${response.body}');
+    }
+  }
+}
+```
+
+### Step 4: Theme Provider (lib/providers/theme_provider.dart)
+```dart
+import 'package:flutter/material.dart';
+
+class ThemeProvider extends ChangeNotifier {
+  bool _isDark = false;
+
+  bool get isDark => _isDark;
+
+  void toggleTheme() {
+    _isDark = !_isDark;
+    notifyListeners();
+  }
+}
+```
+
+### Step 5: Custom Text Widget (lib/widgets/custom_text.dart)
+```dart
+import 'package:flutter/material.dart';
+
+class CustomText extends StatelessWidget {
+  final String text;
+  final double fontSize, letterSpacing;
+  final int? maxLines;
+  final TextOverflow? overflow;
+  final FontWeight fontWeight;
+  final TextAlign textAlign;
+  final String fontFamily;
+  final FontStyle fontStyle;
+
+  const CustomText({
+    super.key,
+    required this.text,
+    this.fontSize = 12,
+    this.fontFamily = 'Poppins',
+    this.fontWeight = FontWeight.normal,
+    this.textAlign = TextAlign.left,
+    this.letterSpacing = 0,
+    this.fontStyle = FontStyle.normal,
+    this.maxLines,
+    this.overflow,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      maxLines: maxLines,
+      overflow: overflow,
+      textAlign: textAlign,
+      style: TextStyle(
+        fontFamily: fontFamily,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        fontStyle: fontStyle,
+        letterSpacing: letterSpacing,
+      ),
+    );
+  }
+}
+```
+
+### Step 6: Main App (lib/main.dart)
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:provider/provider.dart';
+import 'screens/home_screen.dart';
+import 'providers/theme_provider.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]).then((
+    _,
+  ) async {
+    await dotenv.load(fileName: 'assets/.env');
+    runApp(const MainApp());
+  }); 
+}
+
+class MainApp extends StatelessWidget {
+  const MainApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return ScreenUtilInit(
+            designSize: const Size(412, 715),
+            minTextAdapt: true,
+            splitScreenMode: true,
+            builder: (context, child) {
+              return MaterialApp(
+                debugShowCheckedModeBanner: false,
+                theme: ThemeData.light(),
+                darkTheme: ThemeData.dark(),
+                themeMode: themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
+                title: 'Blog App',
+                home: const HomeScreen(),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+```
+
+### Step 7: Constants (lib/constants.dart)
+```dart
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+String get host => dotenv.env['HOST'] ?? 'http://localhost:3000';
+```
+
+## KEY FEATURES IMPLEMENTED
+
+### 1. Article List Screen
+- Search functionality with real-time filtering
+- Article cards showing title, author, content preview, and status
+- Floating action button to add new articles
+- Status chips (Active/Inactive) with color coding
+- Responsive design using ScreenUtil
+
+### 2. Add Article Dialog
+- Form with title, author, and content fields
+- Content supports multi-line input (comma or newline separated)
+- Active/Inactive toggle switch
+- Form validation
+- Integration with backend API
+
+### 3. Article Detail Screen
+- Apple-like aesthetic design
+- SliverAppBar with hero image placeholder
+- Article metadata (author, status)
+- Content display with numbered list
+- Responsive layout
+
+### 4. Theme Management
+- Dark/Light mode toggle
+- Settings screen with dedicated toggle
+- Dynamic icon switching
+- Persistent theme state
+
+### 5. Navigation
+- Bottom navigation bar
+- Multi-page layout with PageView
+- Proper route handling
+- Back navigation support
+
+## TESTING THE APP
+
+### 1. Backend Setup
+- Ensure your backend server is running on http://localhost:3000
+- Implement the required API routes
+- Test with sample data
+
+### 2. Flutter App
+- Run `flutter pub get` to install dependencies
+- Ensure `.env` file is in `assets/` folder
+- Run `flutter run` to start the app
+
+### 3. Testing Features
+- Verify article list loads from backend
+- Test search functionality
+- Try adding new articles
+- Check theme switching
+- Test navigation between screens
+
+## TROUBLESHOOTING
+
+### Common Issues:
+1. **Connection refused**: Backend server not running
+2. **File not found**: Missing `.env` file or incorrect path
+3. **Compilation errors**: Check import statements and class names
+4. **Navigation errors**: Ensure all screen files exist and are properly imported
+
+### Debug Steps:
+1. Check console for error messages
+2. Verify backend API responses
+3. Confirm file paths and imports
+4. Test API endpoints independently
+
+## DEPENDENCIES SUMMARY
+
+### Flutter Packages:
+- `flutter_dotenv`: Environment variable management
+- `flutter_screenutil`: Responsive UI scaling
+- `provider`: State management
+- `http`: API communication
+
+### Backend Requirements:
+- RESTful API with JSON responses
+- MongoDB or similar database
+- CORS enabled for Flutter web (if applicable)
+- Proper error handling and status codes
+
+This implementation provides a complete, production-ready Flutter app with article management, search, theming, and responsive design. The backend routes are minimal but sufficient for full CRUD operations on articles.
