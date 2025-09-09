@@ -4,6 +4,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/splash_screen.dart';
 import 'providers/theme_provider.dart';
 
 void main() async {
@@ -11,9 +13,9 @@ void main() async {
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]).then((
     _,
   ) async {
-              await dotenv.load(fileName: 'assets/.env');
+    await dotenv.load(fileName: 'assets/.env');
     runApp(const MainApp());
-  }); 
+  });
 }
 
 class MainApp extends StatelessWidget {
@@ -34,9 +36,16 @@ class MainApp extends StatelessWidget {
                 debugShowCheckedModeBanner: false,
                 theme: ThemeData.light(),
                 darkTheme: ThemeData.dark(),
-                themeMode: themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
+                themeMode:
+                    themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
                 title: 'Blog App',
-                home: const HomeScreen(),
+                // Use named routes so Navigator.popAndPushNamed works
+                initialRoute: '/',
+                routes: {
+                  '/': (context) => const SplashScreen(),
+                  '/home': (context) => const HomeScreen(),
+                  '/login': (context) => const LoginScreen(),
+                },
               );
             },
           );

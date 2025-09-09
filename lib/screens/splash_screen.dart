@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter/services.dart';
 import 'package:david_advmobprog/services/user_service.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -14,7 +14,18 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     getIsLogin();
+    _logAssetPresence();
     super.initState();
+  }
+
+  Future<void> _logAssetPresence() async {
+    try {
+      final manifest = await rootBundle.loadString('AssetManifest.json');
+      final found = manifest.contains('assets/images/login_logo.png');
+      debugPrint('[Splash] AssetManifest contains login_logo.png: $found');
+    } catch (e) {
+      debugPrint('[Splash] Failed to read AssetManifest.json: $e');
+    }
   }
 
   Future<void> getIsLogin() async {
@@ -38,21 +49,17 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        padding: const EdgeInsets.all(30),
-        height: ScreenUtil().screenHeight,
+      body: Center(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Enhancement
             Image.asset(
-              'assets/images/NUCITLogo_Black.png',
+              'assets/images/login_logo.png',
+              height: 120,
+              errorBuilder: (context, error, stack) =>
+                  const SizedBox(height: 120),
             ),
-            SizedBox(
-              height: ScreenUtil().setHeight(120),
-            ),
-            // Enhancement
+            const SizedBox(height: 24),
             const CircularProgressIndicator(),
           ],
         ),

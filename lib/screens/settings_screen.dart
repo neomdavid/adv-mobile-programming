@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:david_advmobprog/services/user_service.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/custom_text.dart';
 
@@ -10,7 +11,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.white,
       appBar: AppBar(
@@ -47,48 +48,48 @@ class SettingsScreen extends StatelessWidget {
                   width: 1,
                 ),
               ),
-                             child: Row(
-                 children: [
-                   // Icon on the left
-                   Consumer<ThemeProvider>(
-                     builder: (context, themeProvider, child) {
-                       return Container(
-                         width: 48.w,
-                         height: 48.w,
-                         decoration: BoxDecoration(
-                           color: isDark ? Colors.grey[800] : Colors.grey[200],
-                           borderRadius: BorderRadius.circular(24.r),
-                         ),
-                         child: Icon(
-                           themeProvider.isDark 
-                               ? Icons.light_mode_outlined
-                               : Icons.dark_mode_outlined,
-                           size: 24.sp,
-                           color: isDark ? Colors.grey[400] : Colors.grey[600],
-                         ),
-                       );
-                     },
-                   ),
-                   SizedBox(width: 16.w),
-                   Expanded(
-                     child: Column(
-                       crossAxisAlignment: CrossAxisAlignment.start,
-                       children: [
-                         CustomText(
-                           text: 'Dark Mode',
-                           fontSize: 18.sp,
-                           fontWeight: FontWeight.w600,
-                         ),
-                         SizedBox(height: 8.h),
-                         CustomText(
-                           text: 'Switch between light and dark themes',
-                           fontSize: 14.sp,
-                           fontWeight: FontWeight.w400,
-                         ),
-                       ],
-                     ),
-                   ),
-                   SizedBox(width: 16.w),
+              child: Row(
+                children: [
+                  // Icon on the left
+                  Consumer<ThemeProvider>(
+                    builder: (context, themeProvider, child) {
+                      return Container(
+                        width: 48.w,
+                        height: 48.w,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey[800] : Colors.grey[200],
+                          borderRadius: BorderRadius.circular(24.r),
+                        ),
+                        child: Icon(
+                          themeProvider.isDark
+                              ? Icons.light_mode_outlined
+                              : Icons.dark_mode_outlined,
+                          size: 24.sp,
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        ),
+                      );
+                    },
+                  ),
+                  SizedBox(width: 16.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CustomText(
+                          text: 'Dark Mode',
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        SizedBox(height: 8.h),
+                        CustomText(
+                          text: 'Switch between light and dark themes',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 16.w),
                   Consumer<ThemeProvider>(
                     builder: (context, themeProvider, child) {
                       return GestureDetector(
@@ -100,9 +101,11 @@ class SettingsScreen extends StatelessWidget {
                           height: 32.h,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(16.r),
-                            color: themeProvider.isDark 
+                            color: themeProvider.isDark
                                 ? (isDark ? Colors.blue[600] : Colors.blue[500])
-                                : (isDark ? Colors.grey[700] : Colors.grey[300]),
+                                : (isDark
+                                    ? Colors.grey[700]
+                                    : Colors.grey[300]),
                           ),
                           child: Stack(
                             children: [
@@ -131,6 +134,75 @@ class SettingsScreen extends StatelessWidget {
                         ),
                       );
                     },
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 24.h),
+            // Logout Container
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(24.w),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[900] : Colors.grey[50],
+                borderRadius: BorderRadius.circular(20.r),
+                border: Border.all(
+                  color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48.w,
+                    height: 48.w,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey[800] : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(24.r),
+                    ),
+                    child: Icon(
+                      Icons.logout,
+                      size: 24.sp,
+                      color: isDark ? Colors.red[300] : Colors.red[700],
+                    ),
+                  ),
+                  SizedBox(width: 16.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CustomText(
+                          text: 'Logout',
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        SizedBox(height: 8.h),
+                        CustomText(
+                          text: 'Sign out and return to login screen',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 16.w),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await UserService().logout();
+                      if (context.mounted) {
+                        Navigator.popAndPushNamed(context, '/login');
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDark ? Colors.red[600] : Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 16.w, vertical: 10.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                    ),
+                    child: const Text('Logout'),
                   ),
                 ],
               ),

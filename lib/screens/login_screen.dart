@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:david_advmobprog/services/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -16,6 +17,26 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isLoading = false;
   bool _isObscure = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _logAssetPresence();
+  }
+
+  Future<void> _logAssetPresence() async {
+    try {
+      final manifest = await rootBundle.loadString('AssetManifest.json');
+      final found = manifest.contains('assets/images/login_logo.png');
+      debugPrint('AssetManifest contains login_logo.png: $found');
+      if (!found) {
+        debugPrint(
+            'Known assets in manifest may not include assets/images/login_logo.png');
+      }
+    } catch (e) {
+      debugPrint('Failed to read AssetManifest.json: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -48,8 +69,8 @@ class _LoginScreenState extends State<LoginScreen> {
         const SnackBar(content: Text('Login successful!')),
       );
 
-      // Navigate to home screen
-      Navigator.popAndPushNamed(context, '/home');
+      // Navigate to splash so it shows, then it will route to /home
+      Navigator.popAndPushNamed(context, '/');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -77,6 +98,13 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(height: 40),
+                Image.asset(
+                  'assets/images/login_logo.png',
+                  height: 120,
+                  errorBuilder: (context, error, stack) =>
+                      const SizedBox(height: 120),
+                ),
+                const SizedBox(height: 24),
                 const Text(
                   'Login',
                   style: TextStyle(
