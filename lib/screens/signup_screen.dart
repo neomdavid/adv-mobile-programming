@@ -41,7 +41,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  Future<void> _handleFirebaseSignup() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSubmitting = true);
     try {
@@ -75,6 +75,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
           await UserService().saveUserData(dataToSave);
 
           if (!mounted) return;
+
+          // Show welcome message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Welcome, ${_firstNameController.text}! Account created with Firebase 🔥',
+                style: TextStyle(color: AppColors.successContent),
+              ),
+              backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+
           Navigator.pushNamedAndRemoveUntil(
             context,
             '/home',
@@ -124,6 +137,65 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Registration failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _handleApiSignup() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSubmitting = true);
+    try {
+      final body = {
+        'firstName': _firstNameController.text,
+        'lastName': _lastNameController.text,
+        'age': _ageController.text,
+        'gender': _genderController.text,
+        'contactNumber': _contactNumberController.text,
+        'email': _emailController.text,
+        'username': _usernameController.text,
+        'password': _passwordController.text,
+        'address': _addressController.text,
+        'isActive': _isActive,
+        'type': _selectedType,
+      };
+
+      final response = await UserService().registerUser(body);
+
+      // Save user data to SharedPreferences
+      await UserService().saveUserData(response);
+
+      if (!mounted) return;
+
+      // Show welcome message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Welcome, ${_firstNameController.text}! Account created with MongoDB 🍃',
+            style: TextStyle(color: AppColors.successContent),
+          ),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/home',
+        (route) => false,
+        arguments: {
+          'signupSuccess': true,
+          'firstName': _firstNameController.text,
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('MongoDB registration failed: $e'),
+          backgroundColor: AppColors.error,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -295,11 +367,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               setState(() => _selectedType = v ?? 'editor'),
                         ),
                         const SizedBox(height: 20),
+
+                        // Firebase Signup Button
                         SizedBox(
                           width: double.infinity,
                           height: 48,
-                          child: ElevatedButton(
-                            onPressed: _isSubmitting ? null : _submit,
+                          child: ElevatedButton.icon(
+                            onPressed:
+                                _isSubmitting ? null : _handleFirebaseSignup,
+                            icon: const Icon(Icons.cloud, size: 20),
+                            label: const Text('Sign Up with Firebase'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: AppColors.primaryContent,
@@ -307,17 +384,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 borderRadius: BorderRadius.circular(4),
                               ),
                             ),
-                            child: _isSubmitting
-                                ? SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          AppColors.primaryContent),
-                                    ),
-                                  )
-                                : const Text('Create Account'),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // MongoDB/API Signup Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton.icon(
+                            onPressed: _isSubmitting ? null : _handleApiSignup,
+                            icon: const Icon(Icons.storage, size: 20),
+                            label: const Text('Sign Up with MongoDB'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.secondary,
+                              foregroundColor: AppColors.secondaryContent,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
                           ),
                         ),
                       ],

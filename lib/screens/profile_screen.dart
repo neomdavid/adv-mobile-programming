@@ -128,7 +128,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Username updated successfully'),
+            content: Text(
+              'Username updated successfully',
+              style: TextStyle(color: AppColors.successContent),
+            ),
             backgroundColor: AppColors.success,
           ),
         );
@@ -190,8 +193,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Logged out successfully'),
+          SnackBar(
+            content: Text(
+              'Logged out successfully',
+              style: TextStyle(color: AppColors.successContent),
+            ),
             backgroundColor: AppColors.success,
           ),
         );

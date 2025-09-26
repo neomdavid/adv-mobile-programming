@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
+  Future<void> _handleFirebaseLogin() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -55,66 +55,107 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = true;
       });
 
-      try {
-        final userCredential = await _userService.signIn(
-          email: _emailController.text,
-          password: _passwordController.text,
+      final userCredential = await _userService.signIn(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+
+      final user = userCredential.user;
+      if (user != null) {
+        final dataToSave = {
+          'firstName': user.displayName ?? 'User',
+          'token': await user.getIdToken(),
+          'type': 'firebase_user',
+          '_id': user.uid,
+          'email': user.email ?? '',
+          'isActive': true,
+        };
+
+        await _userService.saveUserData(dataToSave);
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Welcome, ${dataToSave['firstName']}! Logged in with Firebase 🔥',
+              style: TextStyle(color: AppColors.successContent),
+            ),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 3),
+          ),
         );
 
-        final user = userCredential.user;
-        if (user != null) {
-          final dataToSave = {
-            'firstName': user.displayName ?? 'User',
-            'token': await user.getIdToken(),
-            'type': 'firebase_user',
-            '_id': user.uid,
-            'email': user.email ?? '',
-            'isActive': true,
-          };
-
-          await _userService.saveUserData(dataToSave);
-
-          if (!mounted) return;
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Login successful!')),
-          );
-
-          Navigator.popAndPushNamed(context, '/');
-          return;
-        }
-      } catch (firebaseError) {
-        print('Firebase Auth failed, trying API login: $firebaseError');
+        Navigator.popAndPushNamed(context, '/');
       }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Firebase login failed: ${e.toString()}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleApiLogin() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    try {
+      setState(() {
+        _isLoading = true;
+      });
 
       final response = await _userService.loginUser(
         _emailController.text,
         _passwordController.text,
       );
 
+      // Extract user data from nested structure
       final userData = response['user'] ?? {};
       final dataToSave = {
         'firstName': userData['firstName'] ?? 'User',
         'token': response['token'] ?? '',
-        'type': userData['type'] ?? '',
+        'type': 'api_user',
         '_id': userData['_id'] ?? '',
         'email': userData['email'] ?? '',
         'isActive': userData['isActive'] ?? true,
       };
 
+      // Save user data to SharedPreferences
       await _userService.saveUserData(dataToSave);
 
       if (!mounted) return;
 
+      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login successful!')),
+        SnackBar(
+          content: Text(
+            'Welcome, ${dataToSave['firstName']}! Logged in with MongoDB 🍃',
+            style: TextStyle(color: AppColors.successContent),
+          ),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 3),
+        ),
       );
 
+      // Navigate to splash so it shows, then it will route to /home
       Navigator.popAndPushNamed(context, '/');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login failed: ${e.toString()}')),
+        SnackBar(
+          content: Text('MongoDB login failed: ${e.toString()}'),
+          backgroundColor: AppColors.error,
+        ),
       );
     } finally {
       if (mounted) {
@@ -237,11 +278,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                 ),
                 const SizedBox(height: 24),
+
+                // Firebase Login Button
                 SizedBox(
                   width: double.infinity,
                   height: 48,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleLogin,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _handleFirebaseLogin,
+                    icon: const Icon(Icons.cloud, size: 20),
+                    label: const Text('Login with Firebase'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.primaryContent,
@@ -250,23 +295,27 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-                    child: _isLoading
-                        ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppColors.primaryContent),
-                            ),
-                          )
-                        : const Text(
-                            'Log In',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // MongoDB/API Login Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _handleApiLogin,
+                    icon: const Icon(Icons.storage, size: 20),
+                    label: const Text('Login with MongoDB'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: AppColors.secondaryContent,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),

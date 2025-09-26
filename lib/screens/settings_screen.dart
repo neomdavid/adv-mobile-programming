@@ -90,7 +90,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Account deleted successfully'),
+            content: Text(
+              'Account deleted successfully',
+              style: TextStyle(color: AppColors.successContent),
+            ),
             backgroundColor: AppColors.success,
           ),
         );
@@ -221,7 +224,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Password reset successfully'),
+            content: Text(
+              'Password reset successfully',
+              style: TextStyle(color: AppColors.successContent),
+            ),
             backgroundColor: AppColors.success,
           ),
         );
