@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:david_advmobprog/services/user_service.dart';
+import '../constants/colors.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -27,11 +28,11 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _logAssetPresence() async {
     try {
       final manifest = await rootBundle.loadString('AssetManifest.json');
-      final found = manifest.contains('assets/images/login_logo.png');
-      debugPrint('AssetManifest contains login_logo.png: $found');
+      final found = manifest.contains('assets/images/loginlogo.png');
+      debugPrint('AssetManifest contains loginlogo.png: $found');
       if (!found) {
         debugPrint(
-            'Known assets in manifest may not include assets/images/login_logo.png');
+            'Known assets in manifest may not include assets/images/loginlogo.png');
       }
     } catch (e) {
       debugPrint('Failed to read AssetManifest.json: $e');
@@ -59,8 +60,20 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
 
+      // Extract user data from nested structure
+      final userData = response['user'] ?? {};
+      final dataToSave = {
+        'firstName':
+            userData['firstName'] ?? 'User', // Default since not in response
+        'token': response['token'] ?? '',
+        'type': userData['type'] ?? '',
+        '_id': userData['_id'] ?? '',
+        'email': userData['email'] ?? '',
+        'isActive': userData['isActive'] ?? true,
+      };
+
       // Save user data to SharedPreferences
-      await _userService.saveUserData(response);
+      await _userService.saveUserData(dataToSave);
 
       if (!mounted) return;
 
@@ -88,6 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -99,17 +113,18 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const SizedBox(height: 40),
                 Image.asset(
-                  'assets/images/login_logo.png',
+                  'assets/images/loginlogo.png',
                   height: 120,
                   errorBuilder: (context, error, stack) =>
                       const SizedBox(height: 120),
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'Login',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 32,
+                    color: AppColors.baseContent,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -117,12 +132,27 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Email',
-                    prefixIcon: Icon(Icons.email),
+                    prefixIcon: Icon(Icons.email, color: AppColors.baseContent),
+                    filled: true,
+                    fillColor: AppColors.surface,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: const BorderSide(
+                          color: AppColors.baseContent, width: 1),
                     ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: const BorderSide(
+                          color: AppColors.baseContent, width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: const BorderSide(
+                          color: AppColors.baseContent, width: 2),
+                    ),
+                    labelStyle: const TextStyle(color: AppColors.baseContent),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -142,19 +172,35 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: _isObscure,
                   decoration: InputDecoration(
                     labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock),
+                    prefixIcon: Icon(Icons.lock, color: AppColors.baseContent),
                     suffixIcon: IconButton(
                       icon: Icon(
-                          _isObscure ? Icons.visibility_off : Icons.visibility),
+                          _isObscure ? Icons.visibility_off : Icons.visibility,
+                          color: AppColors.baseContent),
                       onPressed: () {
                         setState(() {
                           _isObscure = !_isObscure;
                         });
                       },
                     ),
-                    border: const OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                    filled: true,
+                    fillColor: AppColors.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: const BorderSide(
+                          color: AppColors.baseContent, width: 1),
                     ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: const BorderSide(
+                          color: AppColors.baseContent, width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: const BorderSide(
+                          color: AppColors.baseContent, width: 2),
+                    ),
+                    labelStyle: const TextStyle(color: AppColors.baseContent),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -170,24 +216,45 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.primaryContent,
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                     child: _isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppColors.primaryContent),
+                            ),
                           )
                         : const Text(
                             'Log In',
-                            style: TextStyle(fontSize: 16),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                   ),
                 ),
                 const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text("Don't have an account?",
+                        style: TextStyle(color: AppColors.baseContent)),
+                    TextButton(
+                      onPressed: () => Navigator.pushNamed(context, '/signup'),
+                      child: Text('Sign up',
+                          style: TextStyle(color: AppColors.baseContent)),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),

@@ -178,7 +178,7 @@ class SettingsScreen extends StatelessWidget {
                         ),
                         SizedBox(height: 8.h),
                         CustomText(
-                          text: 'Sign out and return to login screen',
+                          text: 'Sign out',
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w400,
                         ),

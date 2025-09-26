@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
-import '../providers/theme_provider.dart';
 import 'article_screen.dart';
 import 'settings_screen.dart';
+import 'profile_screen.dart';
 import '../widgets/custom_text.dart';
+import '../constants/colors.dart';
 
 class HomeScreen extends StatefulWidget {
   final String username;
@@ -19,13 +19,38 @@ class _HomeScreenState extends State<HomeScreen> {
   final PageController _pageController = PageController();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkSignupSuccess();
+    });
+  }
+
+  void _checkSignupSuccess() {
+    final args = ModalRoute.of(context)?.settings.arguments as Map?;
+    if (args != null && args['signupSuccess'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Welcome, ${args['firstName'] ?? 'User'}! Sign up successful.'),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final themeModel = context.watch<ThemeProvider>();
     return Scaffold(
       appBar: AppBar(
         elevation: 2,
         title: CustomText(
-          text: _selectedIndex == 0 ? 'Articles' : 'Home',
+          text: _selectedIndex == 0
+              ? 'Articles'
+              : _selectedIndex == 1
+                  ? 'Home'
+                  : 'Profile',
           fontSize: 20.sp,
           fontWeight: FontWeight.w600,
         ),
@@ -50,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: const <Widget>[
           ArticleScreen(),
           Placeholder(),
-          SettingsScreen(),
+          ProfileScreen(),
         ],
         onPageChanged: (page) {
           setState(() {
