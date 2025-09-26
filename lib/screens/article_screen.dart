@@ -4,6 +4,7 @@ import '../models/article_model.dart';
 import '../services/article_service.dart';
 import '../widgets/custom_text.dart';
 import '../widgets/add_article_dialog.dart';
+import '../constants/colors.dart';
 import 'detail_screen.dart';
 
 class ArticleScreen extends StatefulWidget {
@@ -67,10 +68,18 @@ class _ArticleScreenState extends State<ArticleScreen> {
 
   Widget _statusChip(bool active) {
     return Chip(
-      label: Text(active ? 'Active' : 'Inactive'),
+      label: Text(
+        active ? 'Active' : 'Inactive',
+        style: TextStyle(
+          color: active ? AppColors.successContent : AppColors.neutralContent,
+          fontSize: 12.sp,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      backgroundColor: active ? AppColors.success : AppColors.neutral,
       visualDensity: VisualDensity.compact,
       side: BorderSide(
-        color: active ? Colors.green : Colors.grey,
+        color: active ? AppColors.success : AppColors.neutral,
       ),
     );
   }
@@ -100,10 +109,13 @@ class _ArticleScreenState extends State<ArticleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openAddArticleDialog,
         icon: const Icon(Icons.add),
         label: const Text('Add'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.primaryContent,
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -119,12 +131,16 @@ class _ArticleScreenState extends State<ArticleScreen> {
               child: TextField(
                 controller: _searchController,
                 onChanged: _filterArticles,
+                style: TextStyle(color: AppColors.baseContent),
                 decoration: InputDecoration(
                   hintText: 'Search articles...',
-                  prefixIcon: Icon(Icons.search, size: 20.sp),
+                  hintStyle: TextStyle(color: AppColors.neutral),
+                  prefixIcon:
+                      Icon(Icons.search, size: 20.sp, color: AppColors.neutral),
                   suffixIcon: _isSearching
                       ? IconButton(
-                          icon: Icon(Icons.clear, size: 20.sp),
+                          icon: Icon(Icons.clear,
+                              size: 20.sp, color: AppColors.neutral),
                           onPressed: () {
                             _searchController.clear();
                             _filterArticles('');
@@ -136,9 +152,7 @@ class _ArticleScreenState extends State<ArticleScreen> {
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey[800]
-                      : Colors.grey[100],
+                  fillColor: AppColors.surface,
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 16.w,
                     vertical: 12.h,
@@ -206,7 +220,12 @@ class _ArticleScreenState extends State<ArticleScreen> {
                         article.content.isNotEmpty ? article.content.first : '';
 
                     return Card(
-                      elevation: 1,
+                      elevation: 2,
+                      color: AppColors.surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18.r),
+                        side: BorderSide(color: AppColors.base300, width: 1),
+                      ),
                       child: InkWell(
                         onTap: () {
                           debugPrint('Tapped index $index: ${article.aid}');
@@ -225,12 +244,13 @@ class _ArticleScreenState extends State<ArticleScreen> {
                             ),
                           );
                         },
+                        borderRadius: BorderRadius.circular(18.r),
                         child: Container(
                           padding: EdgeInsets.symmetric(
                               horizontal: ScreenUtil().setWidth(15),
                               vertical: ScreenUtil().setHeight(15)),
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(18.r),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,

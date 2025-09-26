@@ -55,16 +55,46 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = true;
       });
 
+      try {
+        final userCredential = await _userService.signIn(
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
+
+        final user = userCredential.user;
+        if (user != null) {
+          final dataToSave = {
+            'firstName': user.displayName ?? 'User',
+            'token': await user.getIdToken(),
+            'type': 'firebase_user',
+            '_id': user.uid,
+            'email': user.email ?? '',
+            'isActive': true,
+          };
+
+          await _userService.saveUserData(dataToSave);
+
+          if (!mounted) return;
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Login successful!')),
+          );
+
+          Navigator.popAndPushNamed(context, '/');
+          return;
+        }
+      } catch (firebaseError) {
+        print('Firebase Auth failed, trying API login: $firebaseError');
+      }
+
       final response = await _userService.loginUser(
         _emailController.text,
         _passwordController.text,
       );
 
-      // Extract user data from nested structure
       final userData = response['user'] ?? {};
       final dataToSave = {
-        'firstName':
-            userData['firstName'] ?? 'User', // Default since not in response
+        'firstName': userData['firstName'] ?? 'User',
         'token': response['token'] ?? '',
         'type': userData['type'] ?? '',
         '_id': userData['_id'] ?? '',
@@ -72,17 +102,14 @@ class _LoginScreenState extends State<LoginScreen> {
         'isActive': userData['isActive'] ?? true,
       };
 
-      // Save user data to SharedPreferences
       await _userService.saveUserData(dataToSave);
 
       if (!mounted) return;
 
-      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login successful!')),
       );
 
-      // Navigate to splash so it shows, then it will route to /home
       Navigator.popAndPushNamed(context, '/');
     } catch (e) {
       if (!mounted) return;

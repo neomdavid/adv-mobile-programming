@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:david_advmobprog/services/article_service.dart';
 import 'package:david_advmobprog/widgets/custom_text.dart';
+import '../constants/colors.dart';
 
 class AddArticleDialog extends StatefulWidget {
   final VoidCallback onArticleAdded;
@@ -79,10 +80,12 @@ class _AddArticleDialogState extends State<AddArticleDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      backgroundColor: AppColors.surface,
       title: CustomText(
         text: 'Add Article',
         fontSize: 23.sp,
         fontWeight: FontWeight.normal,
+        color: AppColors.baseContent,
       ),
       content: SizedBox(
         width: double.maxFinite,
@@ -96,9 +99,9 @@ class _AddArticleDialogState extends State<AddArticleDialog> {
                 Container(
                   padding: EdgeInsets.symmetric(vertical: 16.h),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade50,
+                    color: AppColors.success.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8.r),
-                    border: Border.all(color: Colors.green.shade200),
+                    border: Border.all(color: AppColors.success),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -109,7 +112,7 @@ class _AddArticleDialogState extends State<AddArticleDialog> {
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.green.shade400,
+                            AppColors.success,
                           ),
                         ),
                       ),
@@ -118,7 +121,7 @@ class _AddArticleDialogState extends State<AddArticleDialog> {
                         'Adding article...',
                         style: TextStyle(
                           fontSize: 14.sp,
-                          color: Colors.grey[600],
+                          color: AppColors.neutral,
                         ),
                       ),
                     ],
@@ -188,11 +191,12 @@ class _AddArticleDialogState extends State<AddArticleDialog> {
               SizedBox(height: 8.h),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Active'),
+                title: Text('Active',
+                    style: TextStyle(color: AppColors.baseContent)),
                 value: isActive,
-                activeColor: Colors.green.shade400,
-                activeTrackColor: Colors.green.shade400,
-                thumbColor: MaterialStateProperty.all(Colors.white),
+                activeColor: AppColors.success,
+                activeTrackColor: AppColors.success,
+                thumbColor: MaterialStateProperty.all(AppColors.primaryContent),
                 onChanged: _isLoading
                     ? null
                     : (val) => setLocalState(() => isActive = val),
@@ -204,7 +208,7 @@ class _AddArticleDialogState extends State<AddArticleDialog> {
       actions: [
         TextButton(
           onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text('Cancel', style: TextStyle(color: AppColors.neutral)),
         ),
         ElevatedButton.icon(
           onPressed: _isLoading ? null : _submitArticle,
@@ -215,12 +219,16 @@ class _AddArticleDialogState extends State<AddArticleDialog> {
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).colorScheme.onPrimary,
+                      AppColors.successContent,
                     ),
                   ),
                 )
               : const Icon(Icons.save),
           label: const Text('Save'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.success,
+            foregroundColor: AppColors.successContent,
+          ),
         ),
       ],
     );

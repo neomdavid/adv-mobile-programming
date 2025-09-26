@@ -43,7 +43,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: AppColors.surface,
         elevation: 2,
         title: CustomText(
           text: _selectedIndex == 0
@@ -53,12 +55,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   : 'Profile',
           fontSize: 20.sp,
           fontWeight: FontWeight.w600,
+          color: AppColors.baseContent,
         ),
+        iconTheme: IconThemeData(color: AppColors.baseContent),
         actions: [
           IconButton(
             icon: Icon(
               Icons.settings_outlined,
               size: 24.sp,
+              color: AppColors.baseContent,
             ),
             onPressed: () {
               Navigator.of(context).push(
@@ -84,6 +89,9 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: AppColors.surface,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.neutral,
         showSelectedLabels: false,
         showUnselectedLabels: false,
         onTap: _onTappedBar,

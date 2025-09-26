@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../models/article_model.dart';
 import '../widgets/custom_text.dart';
 import '../services/article_service.dart';
+import '../constants/colors.dart';
 
 class DetailScreen extends StatefulWidget {
   final Article article;
@@ -110,23 +111,23 @@ class _DetailScreenState extends State<DetailScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? Colors.black : Colors.white,
+      backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 300.h,
             floating: false,
             pinned: true,
-            backgroundColor: isDark ? Colors.black : Colors.white,
+            backgroundColor: AppColors.surface,
             elevation: 0,
             leading: Container(
               margin: EdgeInsets.all(8.w),
               decoration: BoxDecoration(
-                color: isDark ? Colors.grey[900] : Colors.white,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(12.r),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: AppColors.baseContent.withOpacity(0.1),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -135,7 +136,7 @@ class _DetailScreenState extends State<DetailScreen> {
               child: IconButton(
                 icon: Icon(
                   Icons.arrow_back_ios_new,
-                  color: isDark ? Colors.white : Colors.black,
+                  color: AppColors.baseContent,
                   size: 20.sp,
                 ),
                 onPressed: () => Navigator.of(context).pop(),
@@ -146,11 +147,11 @@ class _DetailScreenState extends State<DetailScreen> {
                 Container(
                   margin: EdgeInsets.all(8.w),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.grey[900] : Colors.white,
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(12.r),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: AppColors.baseContent.withOpacity(0.1),
                         blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
@@ -159,7 +160,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   child: IconButton(
                     icon: Icon(
                       Icons.edit,
-                      color: isDark ? Colors.white : Colors.black,
+                      color: AppColors.baseContent,
                       size: 20.sp,
                     ),
                     onPressed: _toggleEditMode,
@@ -172,9 +173,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: isDark
-                        ? [Colors.grey[900]!, Colors.black]
-                        : [Colors.grey[100]!, Colors.white],
+                    colors: [AppColors.surface, AppColors.background],
                   ),
                 ),
                 child: Column(
@@ -186,11 +185,11 @@ class _DetailScreenState extends State<DetailScreen> {
                       width: 120.w,
                       height: 120.w,
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[800] : Colors.grey[200],
+                        color: AppColors.primary,
                         borderRadius: BorderRadius.circular(60.r),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: AppColors.baseContent.withOpacity(0.1),
                             blurRadius: 20,
                             offset: const Offset(0, 10),
                           ),
@@ -199,7 +198,7 @@ class _DetailScreenState extends State<DetailScreen> {
                       child: Icon(
                         Icons.article_outlined,
                         size: 60.sp,
-                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        color: AppColors.primaryContent,
                       ),
                     ),
 
@@ -215,7 +214,7 @@ class _DetailScreenState extends State<DetailScreen> {
                               style: TextStyle(
                                 fontSize: 28.sp,
                                 fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : Colors.black,
+                                color: AppColors.baseContent,
                               ),
                               decoration: InputDecoration(
                                 border: InputBorder.none,
@@ -223,9 +222,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                 hintStyle: TextStyle(
                                   fontSize: 28.sp,
                                   fontWeight: FontWeight.w700,
-                                  color: isDark
-                                      ? Colors.grey[400]
-                                      : Colors.grey[600],
+                                  color: AppColors.neutral,
                                 ),
                               ),
                               validator: (value) {
@@ -263,10 +260,10 @@ class _DetailScreenState extends State<DetailScreen> {
                       width: double.infinity,
                       padding: EdgeInsets.all(20.w),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[900] : Colors.grey[50],
+                        color: AppColors.surface,
                         borderRadius: BorderRadius.circular(20.r),
                         border: Border.all(
-                          color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                          color: AppColors.base300,
                           width: 1,
                         ),
                       ),
@@ -294,12 +291,14 @@ class _DetailScreenState extends State<DetailScreen> {
                                 // Active Status Toggle
                                 SwitchListTile.adaptive(
                                   contentPadding: EdgeInsets.zero,
-                                  title: const Text('Active'),
+                                  title: Text('Active',
+                                      style: TextStyle(
+                                          color: AppColors.baseContent)),
                                   value: _isActive,
-                                  activeColor: Colors.green.shade400,
-                                  activeTrackColor: Colors.green.shade400,
-                                  thumbColor:
-                                      MaterialStateProperty.all(Colors.white),
+                                  activeColor: AppColors.success,
+                                  activeTrackColor: AppColors.success,
+                                  thumbColor: MaterialStateProperty.all(
+                                      AppColors.primaryContent),
                                   onChanged: _isLoading
                                       ? null
                                       : (val) =>
@@ -317,18 +316,14 @@ class _DetailScreenState extends State<DetailScreen> {
                                         width: 40.w,
                                         height: 40.w,
                                         decoration: BoxDecoration(
-                                          color: isDark
-                                              ? Colors.grey[800]
-                                              : Colors.grey[200],
+                                          color: AppColors.primary,
                                           borderRadius:
                                               BorderRadius.circular(20.r),
                                         ),
                                         child: Icon(
                                           Icons.person_outline,
                                           size: 20.sp,
-                                          color: isDark
-                                              ? Colors.grey[400]
-                                              : Colors.grey[600],
+                                          color: AppColors.primaryContent,
                                         ),
                                       ),
                                       SizedBox(width: 12.w),
@@ -358,12 +353,8 @@ class _DetailScreenState extends State<DetailScreen> {
                                       horizontal: 16.w, vertical: 8.h),
                                   decoration: BoxDecoration(
                                     color: widget.article.isActive
-                                        ? (isDark
-                                            ? Colors.green[800]
-                                            : Colors.green[100])
-                                        : (isDark
-                                            ? Colors.grey[800]
-                                            : Colors.grey[200]),
+                                        ? AppColors.success
+                                        : AppColors.neutral,
                                     borderRadius: BorderRadius.circular(20.r),
                                   ),
                                   child: Row(
@@ -374,12 +365,8 @@ class _DetailScreenState extends State<DetailScreen> {
                                             : Icons.cancel,
                                         size: 16.sp,
                                         color: widget.article.isActive
-                                            ? (isDark
-                                                ? Colors.green[400]
-                                                : Colors.green[600])
-                                            : (isDark
-                                                ? Colors.grey[400]
-                                                : Colors.grey[600]),
+                                            ? AppColors.successContent
+                                            : AppColors.neutralContent,
                                       ),
                                       SizedBox(width: 8.w),
                                       CustomText(
@@ -388,6 +375,9 @@ class _DetailScreenState extends State<DetailScreen> {
                                             : 'Inactive',
                                         fontSize: 14.sp,
                                         fontWeight: FontWeight.w500,
+                                        color: widget.article.isActive
+                                            ? AppColors.successContent
+                                            : AppColors.neutralContent,
                                       ),
                                     ],
                                   ),
@@ -410,10 +400,10 @@ class _DetailScreenState extends State<DetailScreen> {
                       width: double.infinity,
                       padding: EdgeInsets.all(24.w),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[900] : Colors.grey[50],
+                        color: AppColors.surface,
                         borderRadius: BorderRadius.circular(20.r),
                         border: Border.all(
-                          color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                          color: AppColors.base300,
                           width: 1,
                         ),
                       ),
@@ -480,8 +470,8 @@ class _DetailScreenState extends State<DetailScreen> {
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _toggleEditMode,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.grey[600],
-                                foregroundColor: Colors.white,
+                                backgroundColor: AppColors.neutral,
+                                foregroundColor: AppColors.neutralContent,
                                 padding: EdgeInsets.symmetric(vertical: 8.h),
                                 minimumSize: Size(0, 36.h),
                                 shape: RoundedRectangleBorder(
@@ -503,15 +493,15 @@ class _DetailScreenState extends State<DetailScreen> {
                                         strokeWidth: 2,
                                         valueColor:
                                             AlwaysStoppedAnimation<Color>(
-                                          Colors.white,
+                                          AppColors.successContent,
                                         ),
                                       ),
                                     )
                                   : Icon(Icons.save, size: 16.sp),
                               label: const Text('Save Changes'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green.shade400,
-                                foregroundColor: Colors.white,
+                                backgroundColor: AppColors.success,
+                                foregroundColor: AppColors.successContent,
                                 padding: EdgeInsets.symmetric(vertical: 8.h),
                                 minimumSize: Size(0, 36.h),
                                 shape: RoundedRectangleBorder(

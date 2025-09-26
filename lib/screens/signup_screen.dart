@@ -45,6 +45,52 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSubmitting = true);
     try {
+      try {
+        final userCredential = await UserService().createAccount(
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
+
+        final user = userCredential.user;
+        if (user != null) {
+          await UserService()
+              .updateUsername(username: _firstNameController.text);
+
+          final dataToSave = {
+            'firstName': _firstNameController.text,
+            'lastName': _lastNameController.text,
+            'age': _ageController.text,
+            'gender': _genderController.text,
+            'contactNumber': _contactNumberController.text,
+            'email': _emailController.text,
+            'username': _usernameController.text,
+            'password': _passwordController.text,
+            'address': _addressController.text,
+            'isActive': _isActive,
+            'type': _selectedType,
+            'token': await user.getIdToken(),
+            '_id': user.uid,
+          };
+
+          await UserService().saveUserData(dataToSave);
+
+          if (!mounted) return;
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/home',
+            (route) => false,
+            arguments: {
+              'signupSuccess': true,
+              'firstName': _firstNameController.text,
+            },
+          );
+          return;
+        }
+      } catch (firebaseError) {
+        print('Firebase Auth failed, trying API registration: $firebaseError');
+      }
+
+      // Fallback to API registration
       final body = {
         'firstName': _firstNameController.text,
         'lastName': _lastNameController.text,
