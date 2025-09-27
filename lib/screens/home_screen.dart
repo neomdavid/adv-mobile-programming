@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'article_screen.dart';
 import 'settings_screen.dart';
 import 'profile_screen.dart';
+import 'chat_screen.dart';
 import '../widgets/custom_text.dart';
 import '../constants/colors.dart';
 
@@ -51,7 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
           text: _selectedIndex == 0
               ? 'Articles'
               : _selectedIndex == 1
-                  ? 'Home'
+                  ? 'Chats'
                   : 'Profile',
           fontSize: 20.sp,
           fontWeight: FontWeight.w600,
@@ -79,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
         controller: _pageController,
         children: const <Widget>[
           ArticleScreen(),
-          Placeholder(),
+          ChatScreen(),
           ProfileScreen(),
         ],
         onPageChanged: (page) {
@@ -101,8 +102,8 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Notifications',
+            icon: Icon(Icons.chat),
+            label: 'Chat',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
