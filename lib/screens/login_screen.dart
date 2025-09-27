@@ -119,7 +119,6 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
 
-      // Extract user data from nested structure
       final userData = response['user'] ?? {};
       final dataToSave = {
         'firstName': userData['firstName'] ?? 'User',
@@ -130,12 +129,10 @@ class _LoginScreenState extends State<LoginScreen> {
         'isActive': userData['isActive'] ?? true,
       };
 
-      // Save user data to SharedPreferences
       await _userService.saveUserData(dataToSave);
 
       if (!mounted) return;
 
-      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -147,7 +144,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
-      // Navigate to splash so it shows, then it will route to /home
       Navigator.popAndPushNamed(context, '/');
     } catch (e) {
       if (!mounted) return;
@@ -196,7 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 24),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -300,7 +296,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 12),
 
-                // MongoDB/API Login Button
+                // MongoDB Login Button
                 SizedBox(
                   width: double.infinity,
                   height: 48,

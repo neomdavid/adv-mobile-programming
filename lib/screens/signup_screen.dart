@@ -22,6 +22,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _addressController = TextEditingController();
   bool _isActive = true;
   String _selectedType = 'editor';
+  String _selectedAuthMethod = 'firebase'; // 'firebase' or 'mongodb'
 
   bool _isSubmitting = false;
   bool _obscure = true;
@@ -57,19 +58,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
               .updateUsername(username: _firstNameController.text);
 
           final dataToSave = {
-            'firstName': _firstNameController.text,
-            'lastName': _lastNameController.text,
-            'age': _ageController.text,
-            'gender': _genderController.text,
-            'contactNumber': _contactNumberController.text,
+            'firstName': _firstNameController.text, // Display name
             'email': _emailController.text,
-            'username': _usernameController.text,
-            'password': _passwordController.text,
-            'address': _addressController.text,
-            'isActive': _isActive,
-            'type': _selectedType,
             'token': await user.getIdToken(),
-            '_id': user.uid,
+            'uid': user.uid,
+            'type': 'firebase_user',
+            'isActive': true,
           };
 
           await UserService().saveUserData(dataToSave);
@@ -163,7 +157,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       final response = await UserService().registerUser(body);
 
-      // Save user data to SharedPreferences
       await UserService().saveUserData(response);
 
       if (!mounted) return;
@@ -249,6 +242,107 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Authentication Method Selector
+                Text(
+                  'Choose Authentication Method',
+                  style: TextStyle(
+                    color: AppColors.baseContent,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Firebase vs MongoDB Toggle
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.base300),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () =>
+                              setState(() => _selectedAuthMethod = 'firebase'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 12, horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: _selectedAuthMethod == 'firebase'
+                                  ? AppColors.primary
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.cloud,
+                                  color: _selectedAuthMethod == 'firebase'
+                                      ? AppColors.primaryContent
+                                      : AppColors.baseContent,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Firebase',
+                                  style: TextStyle(
+                                    color: _selectedAuthMethod == 'firebase'
+                                        ? AppColors.primaryContent
+                                        : AppColors.baseContent,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () =>
+                              setState(() => _selectedAuthMethod = 'mongodb'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 12, horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: _selectedAuthMethod == 'mongodb'
+                                  ? AppColors.secondary
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.storage,
+                                  color: _selectedAuthMethod == 'mongodb'
+                                      ? AppColors.secondaryContent
+                                      : AppColors.baseContent,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'MongoDB',
+                                  style: TextStyle(
+                                    color: _selectedAuthMethod == 'mongodb'
+                                        ? AppColors.secondaryContent
+                                        : AppColors.baseContent,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
                 Card(
                   elevation: 0,
                   color: AppColors.surface,
@@ -261,63 +355,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        TextFormField(
-                          controller: _firstNameController,
-                          decoration: _decoration('First Name', Icons.person),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _lastNameController,
-                          decoration:
-                              _decoration('Last Name', Icons.person_outline),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _ageController,
-                          keyboardType: TextInputType.number,
-                          decoration: _decoration('Age', Icons.numbers),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _genderController,
-                          decoration: _decoration('Gender', Icons.wc),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _contactNumberController,
-                          keyboardType: TextInputType.phone,
-                          decoration:
-                              _decoration('Contact Number', Icons.phone),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
+                        // Always show email and password
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           decoration: _decoration('Email', Icons.email),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) return 'Required';
-                            final r =
-                                RegExp(r'^[\w\.-]+@[\w\.-]+\.[A-Za-z]{2,4}');
-                            return r.hasMatch(v) ? null : 'Invalid email';
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _usernameController,
-                          decoration:
-                              _decoration('Username', Icons.account_circle),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Required' : null,
+                          validator: (v) => v == null || v.isEmpty
+                              ? 'Required'
+                              : !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                                      .hasMatch(v)
+                                  ? 'Invalid email'
+                                  : null,
                         ),
                         const SizedBox(height: 12),
                         TextFormField(
@@ -327,23 +375,89 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               _decoration('Password', Icons.lock).copyWith(
                             suffixIcon: IconButton(
                               icon: Icon(_obscure
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
+                                  ? Icons.visibility
+                                  : Icons.visibility_off),
                               onPressed: () =>
                                   setState(() => _obscure = !_obscure),
                             ),
                           ),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Required' : null,
+                          validator: (v) => v == null || v.isEmpty
+                              ? 'Required'
+                              : v.length < 6
+                                  ? 'Password must be at least 6 characters'
+                                  : null,
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _addressController,
-                          decoration: _decoration('Address', Icons.location_on),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
+
+                        // Conditional fields based on auth method
+                        if (_selectedAuthMethod == 'mongodb') ...[
+                          // MongoDB fields - show all
+                          TextFormField(
+                            controller: _firstNameController,
+                            decoration: _decoration('First Name', Icons.person),
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Required' : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _lastNameController,
+                            decoration:
+                                _decoration('Last Name', Icons.person_outline),
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Required' : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _ageController,
+                            keyboardType: TextInputType.number,
+                            decoration: _decoration('Age', Icons.numbers),
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Required' : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _genderController,
+                            decoration: _decoration('Gender', Icons.wc),
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Required' : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _contactNumberController,
+                            keyboardType: TextInputType.phone,
+                            decoration:
+                                _decoration('Contact Number', Icons.phone),
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Required' : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _usernameController,
+                            decoration:
+                                _decoration('Username', Icons.account_circle),
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Required' : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _addressController,
+                            decoration:
+                                _decoration('Address', Icons.location_on),
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Required' : null,
+                          ),
+                          const SizedBox(height: 12),
+                        ] else ...[
+                          // Firebase fields - only show display name
+                          TextFormField(
+                            controller: _firstNameController,
+                            decoration:
+                                _decoration('Display Name', Icons.person),
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Required' : null,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
                         SwitchListTile(
                           value: _isActive,
                           onChanged: (v) => setState(() => _isActive = v),
@@ -368,38 +482,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                         const SizedBox(height: 20),
 
-                        // Firebase Signup Button
+                        // Dynamic Signup Button
                         SizedBox(
                           width: double.infinity,
                           height: 48,
                           child: ElevatedButton.icon(
-                            onPressed:
-                                _isSubmitting ? null : _handleFirebaseSignup,
-                            icon: const Icon(Icons.cloud, size: 20),
-                            label: const Text('Sign Up with Firebase'),
+                            onPressed: _isSubmitting
+                                ? null
+                                : _selectedAuthMethod == 'firebase'
+                                    ? _handleFirebaseSignup
+                                    : _handleApiSignup,
+                            icon: Icon(
+                                _selectedAuthMethod == 'firebase'
+                                    ? Icons.cloud
+                                    : Icons.storage,
+                                size: 20),
+                            label: Text(_selectedAuthMethod == 'firebase'
+                                ? 'Sign Up with Firebase'
+                                : 'Sign Up with MongoDB'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: AppColors.primaryContent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        // MongoDB/API Signup Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton.icon(
-                            onPressed: _isSubmitting ? null : _handleApiSignup,
-                            icon: const Icon(Icons.storage, size: 20),
-                            label: const Text('Sign Up with MongoDB'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.secondary,
-                              foregroundColor: AppColors.secondaryContent,
+                              backgroundColor: _selectedAuthMethod == 'firebase'
+                                  ? AppColors.primary
+                                  : AppColors.secondary,
+                              foregroundColor: _selectedAuthMethod == 'firebase'
+                                  ? AppColors.primaryContent
+                                  : AppColors.secondaryContent,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(4),
                               ),
