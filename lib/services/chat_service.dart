@@ -1,19 +1,52 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:david_advmobprog/models/message_model.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:david_advmobprog/constants.dart';
 
 class ChatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
-  // get all users
+  // get all users from backend API
+  Future<List<Map<String, dynamic>>> getUsers() async {
+    print('ChatService: Getting users from backend API');
+    try {
+      final response = await http.get(Uri.parse('$host/api/users'));
+      print('ChatService: Backend response status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('ChatService: Backend response data: $data');
+
+        // Handle different response formats
+        List<Map<String, dynamic>> users = [];
+        if (data is List) {
+          users = data.cast<Map<String, dynamic>>();
+        } else if (data is Map && data.containsKey('data')) {
+          users = List<Map<String, dynamic>>.from(data['data']);
+        } else if (data is Map && data.containsKey('users')) {
+          users = List<Map<String, dynamic>>.from(data['users']);
+        }
+
+        print('ChatService: Returning ${users.length} users from backend');
+        return users;
+      } else {
+        print(
+            'ChatService: Backend error: ${response.statusCode} - ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      print('ChatService: Backend request failed: $e');
+      return [];
+    }
+  }
+
+  // get all users (stream version for compatibility)
   Stream<List<Map<String, dynamic>>> getUsersStream() {
-    return _firestore.collection("Users").snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final user = doc.data();
-        return user;
-      }).toList();
-    });
+    print('ChatService: Getting users stream from backend API');
+    return Stream.fromFuture(getUsers());
   }
 
   // send message
@@ -59,15 +92,21 @@ class ChatService {
   }
 
   Future<String?> getUidByEmail(String email) async {
-    final q = await _firestore
-        .collection('Users')
-        .where('email', isEqualTo: email)
-        .limit(1)
-        .get();
-
-    if (q.docs.isEmpty) return null;
-
-    // Ensure your Users doc actually stores the Firebase Auth UID in a field 'uid'
-    return (q.docs.first.data()['uid'] ?? '').toString();
+    print('ChatService: Getting UID by email from backend: $email');
+    try {
+      final users = await getUsers();
+      for (final user in users) {
+        if (user['email'] == email) {
+          final uid = user['_id'] ?? user['uid'] ?? user['id'];
+          print('ChatService: Found UID for $email: $uid');
+          return uid?.toString();
+        }
+      }
+      print('ChatService: No user found with email: $email');
+      return null;
+    } catch (e) {
+      print('ChatService: Error getting UID by email: $e');
+      return null;
+    }
   }
 }

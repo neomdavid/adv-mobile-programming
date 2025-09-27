@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/chat_service.dart';
 import '../services/user_service.dart';
 import '../widgets/custom_text.dart';
@@ -16,19 +17,40 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _searchChatController = TextEditingController();
   final ChatService _chatService = ChatService();
   String? _currentUserEmail;
+  String? _currentUserId;
   String _searchText = '';
 
   @override
   void initState() {
     super.initState();
-    _loadCurrentUserEmail();
+    _loadCurrentUserData();
   }
 
-  Future<void> _loadCurrentUserEmail() async {
+  Future<void> _loadCurrentUserData() async {
     final userData = await userService.value.getUserData();
     setState(() {
       _currentUserEmail = userData['email'];
+      _currentUserId = userData['_id'];
     });
+  }
+
+  void _testFirebaseConnection() {
+    print('Testing Firebase connection...');
+    try {
+      // Try to access Firebase Firestore
+      final firestore = FirebaseFirestore.instance;
+      print('Firebase Firestore instance created successfully');
+
+      // Try to get a simple collection
+      firestore.collection("Users").limit(1).get().then((snapshot) {
+        print(
+            'Firebase test query successful: ${snapshot.docs.length} documents found');
+      }).catchError((error) {
+        print('Firebase test query failed: $error');
+      });
+    } catch (e) {
+      print('Firebase connection test failed: $e');
+    }
   }
 
   @override
@@ -39,6 +61,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print('ChatScreen build() called');
+    print('Current user email: $_currentUserEmail');
+    print('Current user ID: $_currentUserId');
+
+    // Test Firebase connection
+    _testFirebaseConnection();
+
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -88,14 +117,14 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 );
               }
-
               if (snapshot.hasError) {
+                print('StreamBuilder - Showing error: ${snapshot.error}');
                 return Container(
                   height: ScreenUtil().screenHeight * 0.6,
                   padding: EdgeInsets.all(16.sp),
                   child: Center(
                     child: CustomText(
-                      text: 'Error loading users',
+                      text: 'Error loading users: ${snapshot.error}',
                       fontSize: 16.sp,
                     ),
                   ),
@@ -115,8 +144,34 @@ class _ChatScreenState extends State<ChatScreen> {
                 );
               }
 
+              // Check if current user data is loaded
+              if (_currentUserEmail == null && _currentUserId == null) {
+                return Container(
+                  height: ScreenUtil().screenHeight * 0.6,
+                  padding: EdgeInsets.all(16.sp),
+                  child: Center(
+                    child: CustomText(
+                      text: 'Loading user data...',
+                      fontSize: 16.sp,
+                    ),
+                  ),
+                );
+              }
+
               final users = snapshot.data!;
-              final filteredUsers = users.where((user) {
+
+              // Debug logging
+              print('Total users from Firebase: ${users.length}');
+              print('Current user email: $_currentUserEmail');
+              print('Current user ID: $_currentUserId');
+
+              if (users.isNotEmpty) {
+                print('First user data: ${users.first}');
+              }
+
+              final otherUsers = users;
+
+              final filteredUsers = otherUsers.where((user) {
                 if (_searchText.isEmpty) return true;
                 final firstName =
                     user['firstName']?.toString().toLowerCase() ?? '';
@@ -131,7 +186,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   padding: EdgeInsets.all(16.sp),
                   child: Center(
                     child: CustomText(
-                      text: 'No messages found...',
+                      text: _searchText.isEmpty
+                          ? 'No other users found...'
+                          : 'No users match your search',
                       fontSize: 16.sp,
                     ),
                   ),
