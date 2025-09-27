@@ -61,13 +61,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print('ChatScreen build() called');
-    print('Current user email: $_currentUserEmail');
-    print('Current user ID: $_currentUserId');
-
-    // Test Firebase connection
-    _testFirebaseConnection();
-
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -160,16 +153,17 @@ class _ChatScreenState extends State<ChatScreen> {
 
               final users = snapshot.data!;
 
-              // Debug logging
-              print('Total users from Firebase: ${users.length}');
-              print('Current user email: $_currentUserEmail');
-              print('Current user ID: $_currentUserId');
+              // Filter out the current user from the list
+              final otherUsers = users.where((user) {
+                // Exclude current user by email or UID
+                final userEmail = user['email']?.toString() ?? '';
+                final userUid = user['uid']?.toString() ?? '';
+                final userId = user['_id']?.toString() ?? '';
 
-              if (users.isNotEmpty) {
-                print('First user data: ${users.first}');
-              }
-
-              final otherUsers = users;
+                return userEmail != _currentUserEmail &&
+                    userUid != _currentUserId &&
+                    userId != _currentUserId;
+              }).toList();
 
               final filteredUsers = otherUsers.where((user) {
                 if (_searchText.isEmpty) return true;
