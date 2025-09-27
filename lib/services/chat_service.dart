@@ -1,13 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:david_advmobprog/models/message_model.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:david_advmobprog/constants.dart';
+import 'user_service.dart';
 
 class ChatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   // get all users from backend API
   Future<List<Map<String, dynamic>>> getUsers() async {
@@ -52,12 +51,16 @@ class ChatService {
   // send message
   Future<void> sendMessage(
       String currentUserId, String receiverId, message) async {
-    final String? currentUserEmail = _firebaseAuth.currentUser!.email;
+    // Get current user email from SharedPreferences (MongoDB user data)
+    final userData = await userService.value.getUserData();
+    final String? currentUserEmail = userData['email'];
     final Timestamp timestamp = Timestamp.now();
 
-    print(
-        'ChatService: sendMessage called with currentUserId: $currentUserId, receiverId: $receiverId');
-    print('ChatService: Message content: $message');
+    print('ChatService: sendMessage called with:');
+    print('ChatService: - currentUserId (MongoDB): $currentUserId');
+    print('ChatService: - receiverId (MongoDB): $receiverId');
+    print('ChatService: - message: $message');
+    print('ChatService: - currentUserEmail: $currentUserEmail');
 
     MessageModel newMessage = MessageModel(
       senderId: currentUserId,
@@ -99,12 +102,14 @@ class ChatService {
 
     print('ChatService: Getting messages for users $userID and $otherUserID');
     print('ChatService: Chat room ID: $chatRoomID');
+    print(
+        'ChatService: Querying Firestore collection: chat_rooms/$chatRoomID/messages');
 
     return _firestore
         .collection("chat_rooms")
         .doc(chatRoomID)
         .collection("messages")
-        .orderBy('timestamp', descending: true)
+        .orderBy('timestamp', descending: false) // Oldest messages first
         .snapshots();
   }
 

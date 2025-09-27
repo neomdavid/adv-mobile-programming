@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import '../services/chat_service.dart';
 import '../services/user_service.dart';
 import '../widgets/custom_text.dart';
@@ -38,6 +39,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
   late Future<String> _currentUserIdFuture;
   bool _isSending = false;
   Timestamp? _sendingStartedAt;
+  StreamController<QuerySnapshot>? _messageStreamController;
 
   late AnimationController _messageAnimationController;
   late AnimationController _typingAnimationController;
@@ -66,42 +68,98 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
     _scrollCtrl.dispose();
     _messageAnimationController.dispose();
     _typingAnimationController.dispose();
+    _messageStreamController?.close();
     super.dispose();
   }
 
+  void _refreshMessageStream(String currentUserId, String tappedUserId) {
+    print(
+        'ChatDetailScreen: Refreshing message stream for users: $currentUserId, $tappedUserId');
+    _messageStreamController?.close();
+    _messageStreamController = StreamController<QuerySnapshot>();
+
+    // Get the stream from chat service and add it to our controller
+    chatService.getMessage(currentUserId, tappedUserId).listen(
+      (snapshot) {
+        print(
+            'ChatDetailScreen: Received snapshot with ${snapshot.docs.length} messages');
+        _messageStreamController?.add(snapshot);
+
+        // Mark messages as seen when user opens the chat
+        _markMessagesAsSeen(currentUserId, tappedUserId);
+
+        // Auto-scroll to bottom when new messages arrive
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollCtrl.hasClients) {
+            _scrollCtrl.animateTo(
+              _scrollCtrl.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
+      },
+      onError: (error) {
+        print('ChatDetailScreen: Stream error: $error');
+        _messageStreamController?.addError(error);
+      },
+    );
+  }
+
+  Future<void> _markMessagesAsSeen(
+      String currentUserId, String otherUserId) async {
+    try {
+      // Get chat room ID
+      List<String> ids = [currentUserId, otherUserId];
+      ids.sort();
+      String chatRoomID = ids.join('_');
+
+      // Update all messages from the other user to "seen" status
+      final messagesQuery = await FirebaseFirestore.instance
+          .collection("chat_rooms")
+          .doc(chatRoomID)
+          .collection("messages")
+          .where('receiverId',
+              isEqualTo: currentUserId) // Messages sent TO current user
+          .where('seenAt', isNull: true) // Only unseen messages
+          .get();
+
+      // Batch update all unseen messages
+      final batch = FirebaseFirestore.instance.batch();
+      for (var doc in messagesQuery.docs) {
+        batch.update(doc.reference, {
+          'seenAt': FieldValue.serverTimestamp(),
+          'status': 'seen',
+        });
+      }
+
+      if (messagesQuery.docs.isNotEmpty) {
+        await batch.commit();
+        print(
+            'ChatDetailScreen: Marked ${messagesQuery.docs.length} messages as seen');
+      }
+    } catch (e) {
+      print('ChatDetailScreen: Error marking messages as seen: $e');
+    }
+  }
+
   Future<String> _getCurrentUserId() async {
-    // Use backend ID for consistency with other users
+    // Use MongoDB ID directly from SharedPreferences (hybrid approach)
     final userData = await userService.value.getUserData();
-    final backendId = userData['_id'] ?? '';
-
+    final mongoUserId = userData['_id'] ?? '';
     print('ChatDetailScreen: User data from SharedPreferences: $userData');
-    print('ChatDetailScreen: Backend ID: "$backendId"');
-    print('ChatDetailScreen: Backend ID length: ${backendId.length}');
-    print('ChatDetailScreen: Backend ID isEmpty: ${backendId.isEmpty}');
-    print('ChatDetailScreen: Token: "${userData['token']}"');
-    print('ChatDetailScreen: Email: "${userData['email']}"');
+    print('ChatDetailScreen: MongoDB ID: "$mongoUserId"');
 
-    // Check if user is logged in with Firebase Auth
-    final currentUser = FirebaseAuth.instance.currentUser;
-    print('ChatDetailScreen: Firebase Auth current user: ${currentUser?.uid}');
-
-    if (backendId.isNotEmpty) {
-      print('ChatDetailScreen: Using backend ID for current user: $backendId');
-      return backendId;
+    if (mongoUserId.isNotEmpty) {
+      print(
+          'ChatDetailScreen: Using MongoDB ID for current user: $mongoUserId');
+      return mongoUserId;
     }
 
-    // If backend ID is empty, this is a problem - user should be logged in with backend
-    print(
-        'ChatDetailScreen: ERROR - Backend ID is empty! User may not be properly logged in with backend API.');
-    print(
-        'ChatDetailScreen: This will cause chat isolation issues. Please log out and log in again.');
-
-    // Fallback to Firebase Auth UID if backend ID is not available
+    // Fallback to Firebase Auth UID if MongoDB ID is not available
+    final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
-      print(
-          'ChatDetailScreen: WARNING - Using Firebase UID as fallback: ${currentUser.uid}');
-      print(
-          'ChatDetailScreen: This will cause chat messages to be isolated between users!');
+      print('ChatDetailScreen: Fallback to Firebase UID: ${currentUser.uid}');
       return currentUser.uid;
     }
 
@@ -330,16 +388,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
   }
 
   String _formatTimestamp(Timestamp timestamp) {
-    final date = timestamp.toDate();
+    // Convert UTC timestamp to Philippine Time (UTC+8)
+    final utcDate = timestamp.toDate();
+    final phDate = utcDate.add(const Duration(hours: 8));
+
     final now = DateTime.now();
-    final difference = now.difference(date);
+    final difference = now.difference(phDate);
 
     if (difference.inDays > 0) {
-      return '${date.day}/${date.month}/${date.year}';
+      return '${phDate.day}/${phDate.month}/${phDate.year}';
     } else {
-      // Always show full time format (HH:MM AM/PM)
-      final hour = date.hour;
-      final minute = date.minute.toString().padLeft(2, '0');
+      // Always show full time format (HH:MM AM/PM) in Philippine Time
+      final hour = phDate.hour;
+      final minute = phDate.minute.toString().padLeft(2, '0');
       final period = hour >= 12 ? 'PM' : 'AM';
       final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
       return '$displayHour:$minute $period';
@@ -432,14 +493,34 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
 
               final tappedUserId = uidSnap.data!;
 
+              // Debug: Print chat room IDs for both users
+              List<String> ids1 = [currentUserId, tappedUserId];
+              ids1.sort();
+              String chatRoomID1 = ids1.join('_');
+              print(
+                  'ChatDetailScreen: Chat room ID (current user first): $chatRoomID1');
+
+              List<String> ids2 = [tappedUserId, currentUserId];
+              ids2.sort();
+              String chatRoomID2 = ids2.join('_');
+              print(
+                  'ChatDetailScreen: Chat room ID (other user first): $chatRoomID2');
+              print(
+                  'ChatDetailScreen: Chat room IDs match: ${chatRoomID1 == chatRoomID2}');
+
+              // Initialize message stream
+              _refreshMessageStream(currentUserId, tappedUserId);
+
               return Column(
                 children: [
                   // Messages
                   Expanded(
                     child: StreamBuilder<QuerySnapshot>(
-                      stream:
-                          chatService.getMessage(currentUserId, tappedUserId),
+                      stream: _messageStreamController?.stream,
                       builder: (context, snapshot) {
+                        print(
+                            'ChatDetailScreen: StreamBuilder triggered - ConnectionState: ${snapshot.connectionState}');
+
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
                           return Center(
@@ -457,8 +538,30 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
                         List<QueryDocumentSnapshot> docs =
                             snapshot.data?.docs ?? [];
 
+                        print(
+                            'ChatDetailScreen: StreamBuilder received ${docs.length} messages');
+                        print(
+                            'ChatDetailScreen: Current user ID: $currentUserId');
+                        print(
+                            'ChatDetailScreen: Tapped user ID: $tappedUserId');
+                        print('ChatDetailScreen: _isSending: $_isSending');
+                        print(
+                            'ChatDetailScreen: Connection state: ${snapshot.connectionState}');
+                        print(
+                            'ChatDetailScreen: Has data: ${snapshot.hasData}');
+                        print(
+                            'ChatDetailScreen: Has error: ${snapshot.hasError}');
+
+                        // Debug: Print first few message details
+                        if (docs.isNotEmpty) {
+                          print(
+                              'ChatDetailScreen: First message data: ${docs.first.data()}');
+                        }
+
                         // Hide just-sent messages until delay completes
                         if (_isSending && _sendingStartedAt != null) {
+                          print(
+                              'ChatDetailScreen: Filtering messages due to sending state');
                           docs = docs.where((doc) {
                             final data = doc.data() as Map<String, dynamic>;
                             final senderId = data['senderId'] as String?;
@@ -471,20 +574,52 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
                             }
                             return true;
                           }).toList();
+                          print(
+                              'ChatDetailScreen: After filtering: ${docs.length} messages');
                         }
+
+                        print(
+                            'ChatDetailScreen: Final docs count before rendering: ${docs.length}');
 
                         if (docs.isEmpty) {
                           return Center(
-                            child: Text('No messages yet'),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('No messages yet'),
+                                SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    // Force refresh the stream
+                                    _refreshMessageStream(
+                                        currentUserId, tappedUserId);
+                                    setState(() {});
+                                  },
+                                  child: Text('Refresh Messages'),
+                                ),
+                              ],
+                            ),
                           );
+                        }
+
+                        print(
+                            'ChatDetailScreen: Building ListView with ${docs.length} items');
+
+                        // Start message animation if not already started
+                        if (!_messageAnimationController.isAnimating &&
+                            _messageAnimationController.value == 0) {
+                          _messageAnimationController.forward();
+                          print('ChatDetailScreen: Started message animation');
                         }
 
                         return ListView.builder(
                           controller: _scrollCtrl,
-                          reverse: true,
+                          reverse: false, // Newest messages at bottom
                           padding: EdgeInsets.symmetric(vertical: 8.h),
                           itemCount: docs.length,
                           itemBuilder: (context, index) {
+                            print(
+                                'ChatDetailScreen: Building item $index of ${docs.length}');
                             final data =
                                 docs[index].data() as Map<String, dynamic>;
                             final msgText = data['message'] as String?;
@@ -492,9 +627,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen>
                             final timestamp = data['timestamp'] as Timestamp?;
                             final isMe = senderId == currentUserId;
 
-                            // Determine message status
+                            print(
+                                'ChatDetailScreen: Item $index - msgText: "$msgText", senderId: "$senderId", isMe: $isMe');
+
+                            // Determine message status from Firestore data
                             MessageStatus status = MessageStatus.sent;
-                            if (_isSending &&
+
+                            // Check if message has seenAt timestamp (actually seen)
+                            final seenAt = data['seenAt'] as Timestamp?;
+                            if (seenAt != null) {
+                              status = MessageStatus.seen;
+                            } else if (_isSending &&
                                 _sendingStartedAt != null &&
                                 timestamp != null) {
                               if (timestamp.compareTo(_sendingStartedAt!) > 0) {

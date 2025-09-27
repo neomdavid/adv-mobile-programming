@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:david_advmobprog/services/user_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/colors.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -46,58 +47,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSubmitting = true);
     try {
-      try {
-        final userCredential = await UserService().createAccount(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
-
-        final user = userCredential.user;
-        if (user != null) {
-          await UserService()
-              .updateUsername(username: _firstNameController.text);
-
-          final dataToSave = {
-            'firstName': _firstNameController.text, // Display name
-            'email': _emailController.text,
-            'token': await user.getIdToken(),
-            'uid': user.uid,
-            'type': 'firebase_user',
-            'isActive': true,
-          };
-
-          await UserService().saveUserData(dataToSave);
-
-          if (!mounted) return;
-
-          // Show welcome message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Welcome, ${_firstNameController.text}! Account created with Firebase 🔥',
-                style: TextStyle(color: AppColors.successContent),
-              ),
-              backgroundColor: AppColors.success,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/home',
-            (route) => false,
-            arguments: {
-              'signupSuccess': true,
-              'firstName': _firstNameController.text,
-            },
-          );
-          return;
-        }
-      } catch (firebaseError) {
-        print('Firebase Auth failed, trying API registration: $firebaseError');
-      }
-
-      // Fallback to API registration
+      // Use the same hybrid approach as _handleApiSignup
+      // Step 1: Register with MongoDB backend
       final body = {
         'firstName': _firstNameController.text,
         'lastName': _lastNameController.text,
@@ -113,11 +64,73 @@ class _SignUpScreenState extends State<SignUpScreen> {
       };
 
       final response = await UserService().registerUser(body);
+      final userData = response['user'] ?? response;
+      final mongoUserId = userData['_id'] ?? '';
+      final userEmail = _emailController.text;
+      final userPassword = _passwordController.text;
 
-      // Save user data to SharedPreferences
-      await UserService().saveUserData(response);
+      // Step 2: Create Firebase user for real-time features
+      try {
+        final userCredential = await UserService().createAccount(
+          email: userEmail,
+          password: userPassword,
+        );
+        print('SignupScreen: Firebase user created successfully');
+
+        // Step 2a: Store additional user data in Firestore
+        if (userCredential.user != null) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .set({
+            'firstName': userData['firstName'] ?? _firstNameController.text,
+            'lastName': userData['lastName'] ?? _lastNameController.text,
+            'age': userData['age'] ?? _ageController.text,
+            'gender': userData['gender'] ?? _genderController.text,
+            'contactNumber':
+                userData['contactNumber'] ?? _contactNumberController.text,
+            'email': userEmail,
+            'username': userData['username'] ?? _usernameController.text,
+            'address': userData['address'] ?? _addressController.text,
+            'isActive': userData['isActive'] ?? _isActive,
+            'type': userData['type'] ?? _selectedType,
+            'mongoId': mongoUserId, // Link to MongoDB user
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          print('SignupScreen: User data stored in Firestore');
+        }
+      } catch (firebaseError) {
+        print('SignupScreen: Firebase user creation failed: $firebaseError');
+        // Continue with MongoDB registration even if Firebase fails
+      }
+
+      // Step 3: Save MongoDB user data to SharedPreferences
+      final dataToSave = {
+        'firstName': userData['firstName'] ?? _firstNameController.text,
+        'token': response['token'] ?? '',
+        'type': 'mongodb_user',
+        '_id': mongoUserId, // Use MongoDB ID consistently
+        'email': userEmail,
+        'isActive': userData['isActive'] ?? true,
+      };
+
+      await UserService().saveUserData(dataToSave);
 
       if (!mounted) return;
+
+      // Show welcome message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Welcome, ${_firstNameController.text}! Account created with MongoDB + Firebase 🔥',
+            style: TextStyle(color: AppColors.successContent),
+          ),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+
       Navigator.pushNamedAndRemoveUntil(
         context,
         '/home',
@@ -141,6 +154,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSubmitting = true);
     try {
+      // Step 1: Register with MongoDB backend
       final body = {
         'firstName': _firstNameController.text,
         'lastName': _lastNameController.text,
@@ -156,8 +170,58 @@ class _SignUpScreenState extends State<SignUpScreen> {
       };
 
       final response = await UserService().registerUser(body);
+      final userData = response['user'] ?? response;
+      final mongoUserId = userData['_id'] ?? '';
+      final userEmail = _emailController.text;
+      final userPassword = _passwordController.text;
 
-      await UserService().saveUserData(response);
+      // Step 2: Create Firebase user for real-time features
+      try {
+        final userCredential = await UserService().createAccount(
+          email: userEmail,
+          password: userPassword,
+        );
+        print('SignupScreen: Firebase user created successfully');
+
+        // Step 2a: Store additional user data in Firestore
+        if (userCredential.user != null) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .set({
+            'firstName': userData['firstName'] ?? _firstNameController.text,
+            'lastName': userData['lastName'] ?? _lastNameController.text,
+            'age': userData['age'] ?? _ageController.text,
+            'gender': userData['gender'] ?? _genderController.text,
+            'contactNumber':
+                userData['contactNumber'] ?? _contactNumberController.text,
+            'email': userEmail,
+            'username': userData['username'] ?? _usernameController.text,
+            'address': userData['address'] ?? _addressController.text,
+            'isActive': userData['isActive'] ?? _isActive,
+            'type': userData['type'] ?? _selectedType,
+            'mongoId': mongoUserId, // Link to MongoDB user
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          print('SignupScreen: User data stored in Firestore');
+        }
+      } catch (firebaseError) {
+        print('SignupScreen: Firebase user creation failed: $firebaseError');
+        // Continue with MongoDB registration even if Firebase fails
+      }
+
+      // Step 3: Save MongoDB user data to SharedPreferences
+      final dataToSave = {
+        'firstName': userData['firstName'] ?? _firstNameController.text,
+        'token': response['token'] ?? '',
+        'type': 'mongodb_user',
+        '_id': mongoUserId, // Use MongoDB ID consistently
+        'email': userEmail,
+        'isActive': userData['isActive'] ?? true,
+      };
+
+      await UserService().saveUserData(dataToSave);
 
       if (!mounted) return;
 
@@ -165,7 +229,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Welcome, ${_firstNameController.text}! Account created with MongoDB 🍃',
+            'Welcome, ${_firstNameController.text}! Account created with MongoDB + Firebase 🔥',
             style: TextStyle(color: AppColors.successContent),
           ),
           backgroundColor: AppColors.success,
@@ -389,75 +453,61 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Conditional fields based on auth method
-                        if (_selectedAuthMethod == 'mongodb') ...[
-                          // MongoDB fields - show all
-                          TextFormField(
-                            controller: _firstNameController,
-                            decoration: _decoration('First Name', Icons.person),
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Required' : null,
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _lastNameController,
-                            decoration:
-                                _decoration('Last Name', Icons.person_outline),
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Required' : null,
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _ageController,
-                            keyboardType: TextInputType.number,
-                            decoration: _decoration('Age', Icons.numbers),
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Required' : null,
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _genderController,
-                            decoration: _decoration('Gender', Icons.wc),
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Required' : null,
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _contactNumberController,
-                            keyboardType: TextInputType.phone,
-                            decoration:
-                                _decoration('Contact Number', Icons.phone),
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Required' : null,
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _usernameController,
-                            decoration:
-                                _decoration('Username', Icons.account_circle),
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Required' : null,
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _addressController,
-                            decoration:
-                                _decoration('Address', Icons.location_on),
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Required' : null,
-                          ),
-                          const SizedBox(height: 12),
-                        ] else ...[
-                          // Firebase fields - only show display name
-                          TextFormField(
-                            controller: _firstNameController,
-                            decoration:
-                                _decoration('Display Name', Icons.person),
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Required' : null,
-                          ),
-                          const SizedBox(height: 12),
-                        ],
+                        // Show all fields for both authentication methods (hybrid approach)
+                        TextFormField(
+                          controller: _firstNameController,
+                          decoration: _decoration('First Name', Icons.person),
+                          validator: (v) =>
+                              v == null || v.isEmpty ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _lastNameController,
+                          decoration:
+                              _decoration('Last Name', Icons.person_outline),
+                          validator: (v) =>
+                              v == null || v.isEmpty ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _ageController,
+                          keyboardType: TextInputType.number,
+                          decoration: _decoration('Age', Icons.numbers),
+                          validator: (v) =>
+                              v == null || v.isEmpty ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _genderController,
+                          decoration: _decoration('Gender', Icons.wc),
+                          validator: (v) =>
+                              v == null || v.isEmpty ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _contactNumberController,
+                          keyboardType: TextInputType.phone,
+                          decoration:
+                              _decoration('Contact Number', Icons.phone),
+                          validator: (v) =>
+                              v == null || v.isEmpty ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _usernameController,
+                          decoration:
+                              _decoration('Username', Icons.account_circle),
+                          validator: (v) =>
+                              v == null || v.isEmpty ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _addressController,
+                          decoration: _decoration('Address', Icons.location_on),
+                          validator: (v) =>
+                              v == null || v.isEmpty ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
                         SwitchListTile(
                           value: _isActive,
                           onChanged: (v) => setState(() => _isActive = v),
@@ -498,8 +548,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     : Icons.storage,
                                 size: 20),
                             label: Text(_selectedAuthMethod == 'firebase'
-                                ? 'Sign Up with Firebase'
-                                : 'Sign Up with MongoDB'),
+                                ? 'Sign Up with MongoDB + Firebase'
+                                : 'Sign Up with MongoDB + Firebase'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _selectedAuthMethod == 'firebase'
                                   ? AppColors.primary

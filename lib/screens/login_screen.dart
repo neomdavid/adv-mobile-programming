@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:david_advmobprog/services/user_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/colors.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -46,64 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _handleFirebaseLogin() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-
-      final userCredential = await _userService.signIn(
-        email: _emailController.text,
-        password: _passwordController.text,
-      );
-
-      final user = userCredential.user;
-      if (user != null) {
-        final dataToSave = {
-          'firstName': user.displayName ?? 'User',
-          'token': await user.getIdToken(),
-          'type': 'firebase_user',
-          '_id': user.uid,
-          'email': user.email ?? '',
-          'isActive': true,
-        };
-
-        await _userService.saveUserData(dataToSave);
-
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Welcome, ${dataToSave['firstName']}! Logged in with Firebase 🔥',
-              style: TextStyle(color: AppColors.successContent),
-            ),
-            backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-
-        Navigator.popAndPushNamed(context, '/');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Firebase login failed: ${e.toString()}'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
+  // Firebase-only login removed - using MongoDB as primary auth
 
   Future<void> _handleApiLogin() async {
     if (!_formKey.currentState!.validate()) {
@@ -114,18 +58,92 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = true;
       });
 
+      // Step 1: Login with MongoDB backend
       final response = await _userService.loginUser(
         _emailController.text,
         _passwordController.text,
       );
 
       final userData = response['user'] ?? {};
+      final mongoUserId = userData['_id'] ?? '';
+      final userEmail = userData['email'] ?? '';
+      final userPassword = _passwordController.text;
+
+      // Step 2: Create or sync Firebase user for real-time features
+      try {
+        // Try to sign in with Firebase first
+        final userCredential = await _userService.signIn(
+          email: userEmail,
+          password: userPassword,
+        );
+        print(
+            'LoginScreen: Firebase user already exists, signed in successfully');
+
+        // Sync user data to Firestore
+        if (userCredential.user != null) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .set(
+                  {
+                'firstName': userData['firstName'] ?? 'User',
+                'lastName': userData['lastName'] ?? '',
+                'age': userData['age'] ?? '',
+                'gender': userData['gender'] ?? '',
+                'contactNumber': userData['contactNumber'] ?? '',
+                'email': userEmail,
+                'username': userData['username'] ?? '',
+                'address': userData['address'] ?? '',
+                'isActive': userData['isActive'] ?? true,
+                'type': userData['type'] ?? '',
+                'mongoId': mongoUserId, // Link to MongoDB user
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
+                  SetOptions(
+                      merge: true)); // Merge to avoid overwriting existing data
+          print('LoginScreen: User data synced to Firestore');
+        }
+      } catch (firebaseError) {
+        print(
+            'LoginScreen: Firebase user doesn\'t exist, creating new one: $firebaseError');
+        // Create Firebase user if doesn't exist
+        final userCredential = await _userService.createAccount(
+          email: userEmail,
+          password: userPassword,
+        );
+        print('LoginScreen: Firebase user created successfully');
+
+        // Store user data in Firestore for new user
+        if (userCredential.user != null) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userCredential.user!.uid)
+              .set({
+            'firstName': userData['firstName'] ?? 'User',
+            'lastName': userData['lastName'] ?? '',
+            'age': userData['age'] ?? '',
+            'gender': userData['gender'] ?? '',
+            'contactNumber': userData['contactNumber'] ?? '',
+            'email': userEmail,
+            'username': userData['username'] ?? '',
+            'address': userData['address'] ?? '',
+            'isActive': userData['isActive'] ?? true,
+            'type': userData['type'] ?? '',
+            'mongoId': mongoUserId, // Link to MongoDB user
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          print('LoginScreen: User data stored in Firestore');
+        }
+      }
+
+      // Step 3: Save MongoDB user data to SharedPreferences
       final dataToSave = {
         'firstName': userData['firstName'] ?? 'User',
         'token': response['token'] ?? '',
-        'type': 'api_user',
-        '_id': userData['_id'] ?? '',
-        'email': userData['email'] ?? '',
+        'type': 'mongodb_user',
+        '_id': mongoUserId, // Use MongoDB ID consistently
+        'email': userEmail,
         'isActive': userData['isActive'] ?? true,
       };
 
@@ -136,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Welcome, ${dataToSave['firstName']}! Logged in with MongoDB 🍃',
+            'Welcome, ${dataToSave['firstName']}! Logged in with MongoDB + Firebase 🔥',
             style: TextStyle(color: AppColors.successContent),
           ),
           backgroundColor: AppColors.success,
@@ -280,9 +298,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _handleFirebaseLogin,
+                    onPressed: _isLoading ? null : _handleApiLogin,
                     icon: const Icon(Icons.cloud, size: 20),
-                    label: const Text('Login with Firebase'),
+                    label: const Text('Login with MongoDB + Firebase'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.primaryContent,
