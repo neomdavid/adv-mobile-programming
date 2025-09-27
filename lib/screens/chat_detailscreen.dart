@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/chat_service.dart';
 import '../services/user_service.dart';
 import '../widgets/custom_text.dart';
+import '../constants/colors.dart';
+
+enum MessageStatus {
+  sending,
+  sent,
+  delivered,
+  seen,
+}
 
 class ChatDetailScreen extends StatefulWidget {
   final String currentUserEmail;
@@ -19,7 +28,8 @@ class ChatDetailScreen extends StatefulWidget {
   State<ChatDetailScreen> createState() => _ChatDetailScreenState();
 }
 
-class _ChatDetailScreenState extends State<ChatDetailScreen> {
+class _ChatDetailScreenState extends State<ChatDetailScreen>
+    with TickerProviderStateMixin {
   final TextEditingController _msgCtrl = TextEditingController();
   final FocusNode _msgFocus = FocusNode();
   final ScrollController _scrollCtrl = ScrollController();
@@ -29,12 +39,24 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   bool _isSending = false;
   Timestamp? _sendingStartedAt;
 
+  late AnimationController _messageAnimationController;
+  late AnimationController _typingAnimationController;
+
   static const _postSendDelay = Duration(milliseconds: 600);
 
   @override
   void initState() {
     super.initState();
     _currentUserIdFuture = _getCurrentUserId();
+
+    _messageAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _typingAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
   }
 
   @override
@@ -42,12 +64,49 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _msgCtrl.dispose();
     _msgFocus.dispose();
     _scrollCtrl.dispose();
+    _messageAnimationController.dispose();
+    _typingAnimationController.dispose();
     super.dispose();
   }
 
   Future<String> _getCurrentUserId() async {
+    // Use backend ID for consistency with other users
     final userData = await userService.value.getUserData();
-    return userData['_id'] ?? '';
+    final backendId = userData['_id'] ?? '';
+
+    print('ChatDetailScreen: User data from SharedPreferences: $userData');
+    print('ChatDetailScreen: Backend ID: "$backendId"');
+    print('ChatDetailScreen: Backend ID length: ${backendId.length}');
+    print('ChatDetailScreen: Backend ID isEmpty: ${backendId.isEmpty}');
+    print('ChatDetailScreen: Token: "${userData['token']}"');
+    print('ChatDetailScreen: Email: "${userData['email']}"');
+
+    // Check if user is logged in with Firebase Auth
+    final currentUser = FirebaseAuth.instance.currentUser;
+    print('ChatDetailScreen: Firebase Auth current user: ${currentUser?.uid}');
+
+    if (backendId.isNotEmpty) {
+      print('ChatDetailScreen: Using backend ID for current user: $backendId');
+      return backendId;
+    }
+
+    // If backend ID is empty, this is a problem - user should be logged in with backend
+    print(
+        'ChatDetailScreen: ERROR - Backend ID is empty! User may not be properly logged in with backend API.');
+    print(
+        'ChatDetailScreen: This will cause chat isolation issues. Please log out and log in again.');
+
+    // Fallback to Firebase Auth UID if backend ID is not available
+    if (currentUser != null) {
+      print(
+          'ChatDetailScreen: WARNING - Using Firebase UID as fallback: ${currentUser.uid}');
+      print(
+          'ChatDetailScreen: This will cause chat messages to be isolated between users!');
+      return currentUser.uid;
+    }
+
+    print('ChatDetailScreen: No user ID found');
+    return '';
   }
 
   Future<void> _send(String currentUserId, String receiverId) async {
@@ -59,15 +118,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       _sendingStartedAt = Timestamp.now();
     });
 
+    _typingAnimationController.repeat();
+
     try {
-      await chatService.sendMessage(receiverId, text);
+      await chatService.sendMessage(currentUserId, receiverId, text);
       _msgCtrl.clear();
       _msgFocus.requestFocus();
+
+      // Animate message appearance
+      _messageAnimationController.forward();
 
       if (_scrollCtrl.hasClients) {
         _scrollCtrl.animateTo(
           0.0,
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
       }
@@ -75,10 +139,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       await Future.delayed(_postSendDelay);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send: $e')),
+        SnackBar(
+          content: Text('Failed to send: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } finally {
       if (mounted) {
+        _typingAnimationController.stop();
         setState(() {
           _isSending = false;
           _sendingStartedAt = null;
@@ -87,9 +156,199 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
+  Widget _buildChatBubble({
+    required String message,
+    required bool isMe,
+    required String timestamp,
+    MessageStatus status = MessageStatus.sent,
+  }) {
+    return AnimatedBuilder(
+      animation: _messageAnimationController,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(
+            0,
+            (1 - _messageAnimationController.value) * 20,
+          ),
+          child: Opacity(
+            opacity: _messageAnimationController.value,
+            child: Container(
+              margin: EdgeInsets.symmetric(vertical: 4.h, horizontal: 8.w),
+              child: Row(
+                mainAxisAlignment:
+                    isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (!isMe) ...[
+                    CircleAvatar(
+                      radius: 16.r,
+                      backgroundColor: AppColors.info,
+                      child: Icon(
+                        Icons.person,
+                        size: 16.sp,
+                        color: AppColors.infoContent,
+                      ),
+                    ),
+                    SizedBox(width: 8.w),
+                  ],
+                  Flexible(
+                    child: Container(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.75,
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16.w,
+                        vertical: 12.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isMe ? AppColors.info : AppColors.base300,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(20.r),
+                          topRight: Radius.circular(20.r),
+                          bottomLeft: isMe
+                              ? Radius.circular(20.r)
+                              : Radius.circular(4.r),
+                          bottomRight: isMe
+                              ? Radius.circular(4.r)
+                              : Radius.circular(20.r),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CustomText(
+                            text: message,
+                            fontSize: 16.sp,
+                            color: isMe
+                                ? AppColors.infoContent
+                                : AppColors.baseContent,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          SizedBox(height: 4.h),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CustomText(
+                                text: timestamp,
+                                fontSize: 12.sp,
+                                color: isMe
+                                    ? AppColors.infoContent.withOpacity(0.7)
+                                    : AppColors.baseContent.withOpacity(0.6),
+                              ),
+                              if (isMe) ...[
+                                SizedBox(width: 4.w),
+                                _buildMessageStatus(status),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (isMe) ...[
+                    SizedBox(width: 8.w),
+                    CircleAvatar(
+                      radius: 16.r,
+                      backgroundColor: AppColors.success,
+                      child: Icon(
+                        Icons.person,
+                        size: 16.sp,
+                        color: AppColors.successContent,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMessageStatus(MessageStatus status) {
+    switch (status) {
+      case MessageStatus.sending:
+        return SizedBox(
+          width: 12.w,
+          height: 12.h,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(
+              AppColors.infoContent.withOpacity(0.7),
+            ),
+          ),
+        );
+      case MessageStatus.sent:
+        return Icon(
+          Icons.check,
+          size: 12.sp,
+          color: AppColors.infoContent.withOpacity(0.7),
+        );
+      case MessageStatus.delivered:
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.done_all,
+              size: 12.sp,
+              color: AppColors.infoContent.withOpacity(0.7),
+            ),
+            SizedBox(width: 2.w),
+            CustomText(
+              text: 'delivered',
+              fontSize: 10.sp,
+              color: AppColors.infoContent.withOpacity(0.7),
+            ),
+          ],
+        );
+      case MessageStatus.seen:
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.done_all,
+              size: 12.sp,
+              color: AppColors.success,
+            ),
+            SizedBox(width: 2.w),
+            CustomText(
+              text: 'seen',
+              fontSize: 10.sp,
+              color: AppColors.success,
+            ),
+          ],
+        );
+    }
+  }
+
+  String _formatTimestamp(Timestamp timestamp) {
+    final date = timestamp.toDate();
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays > 0) {
+      return '${date.day}/${date.month}/${date.year}';
+    } else {
+      // Always show full time format (HH:MM AM/PM)
+      final hour = date.hour;
+      final minute = date.minute.toString().padLeft(2, '0');
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      return '$displayHour:$minute $period';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final tappedUserId = (widget.tappedUser['uid'] ?? '').toString();
+    final tappedUserEmail = (widget.tappedUser['email'] ?? '').toString();
     final tappedUserName = (widget.tappedUser['firstName'] ?? '').toString();
 
     return FutureBuilder<String>(
@@ -114,154 +373,282 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         final currentUserId = snap.data!;
 
         return Scaffold(
+          backgroundColor: AppColors.background,
           appBar: AppBar(
+            backgroundColor: AppColors.surface,
+            elevation: 0,
             centerTitle: true,
-            title: CustomText(
-              text: tappedUserName,
-              fontSize: 25.sp,
-            ),
-          ),
-          body: Column(
-            children: [
-              // Messages
-              Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: chatService.getMessage(currentUserId, tappedUserId),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(
-                        child: CircularProgressIndicator.adaptive(),
-                      );
-                    }
-
-                    if (snapshot.hasError) {
-                      return Center(
-                        child:
-                            Text('Error loading messages: ${snapshot.error}'),
-                      );
-                    }
-
-                    List<QueryDocumentSnapshot> docs =
-                        snapshot.data?.docs ?? [];
-
-                    // Hide just-sent messages until delay completes
-                    if (_isSending && _sendingStartedAt != null) {
-                      docs = docs.where((doc) {
-                        final data = doc.data() as Map<String, dynamic>;
-                        final senderId = data['senderId'] as String?;
-                        final ts = data['timestamp'];
-
-                        if (senderId != currentUserId) return true;
-
-                        if (ts is Timestamp) {
-                          return ts.compareTo(_sendingStartedAt!) < 0;
-                        }
-                        return true;
-                      }).toList();
-                    }
-
-                    if (docs.isEmpty) {
-                      return Center(
-                        child: Text('No messages yet'),
-                      );
-                    }
-
-                    return ListView.builder(
-                      controller: _scrollCtrl,
-                      reverse: true,
-                      padding: EdgeInsets.symmetric(vertical: 8.h),
-                      itemCount: docs.length,
-                      itemBuilder: (context, index) {
-                        final data = docs[index].data() as Map<String, dynamic>;
-                        final msgText = data['message'] as String?;
-                        final senderId = data['senderId'] as String?;
-                        final isMe = senderId == currentUserId;
-
-                        return Align(
-                          alignment: isMe
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            margin: EdgeInsets.symmetric(
-                                vertical: 4.h, horizontal: 8.w),
-                            padding: EdgeInsets.symmetric(
-                                vertical: 10.h, horizontal: 12.w),
-                            constraints: BoxConstraints(
-                              maxWidth:
-                                  MediaQuery.of(context).size.width * 0.75,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isMe
-                                  ? Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withOpacity(0.5)
-                                  : Colors.grey.shade300,
-                              borderRadius: BorderRadius.circular(12).copyWith(
-                                bottomLeft:
-                                    isMe ? Radius.circular(12) : Radius.zero,
-                                bottomRight:
-                                    isMe ? Radius.zero : Radius.circular(12),
-                              ),
-                            ),
-                            child: CustomText(
-                              text: msgText?.isNotEmpty == true
-                                  ? msgText!
-                                  : '[empty]',
-                              fontSize: 15.sp,
-                              fontWeight: FontWeight.normal,
-                              textAlign: TextAlign.left,
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-              // Composer
-              SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _msgCtrl,
-                          focusNode: _msgFocus,
-                          enabled: !_isSending,
-                          textInputAction: TextInputAction.send,
-                          minLines: 1,
-                          maxLines: 4,
-                          onSubmitted: (_) => !_isSending
-                              ? _send(currentUserId, tappedUserId)
-                              : null,
-                          decoration: const InputDecoration(
-                            hintText: 'Type a message...',
-                            hintStyle: TextStyle(fontFamily: 'Poppins'),
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      _isSending
-                          ? const SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : IconButton(
-                              icon: const Icon(Icons.send),
-                              onPressed: () =>
-                                  _send(currentUserId, tappedUserId),
-                            ),
-                    ],
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(
+                  radius: 18.r,
+                  backgroundColor: AppColors.info,
+                  child: Icon(
+                    Icons.person,
+                    size: 18.sp,
+                    color: AppColors.infoContent,
                   ),
                 ),
+                SizedBox(width: 12.w),
+                CustomText(
+                  text: tappedUserName,
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.baseContent,
+                ),
+              ],
+            ),
+            iconTheme: IconThemeData(
+              color: AppColors.baseContent,
+              size: 24.sp,
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(
+                  Icons.more_vert,
+                  color: AppColors.baseContent,
+                ),
+                onPressed: () {
+                  // TODO: Add more options
+                },
               ),
             ],
+          ),
+          body: FutureBuilder<String?>(
+            future: chatService.getUidByEmail(tappedUserEmail),
+            builder: (context, uidSnap) {
+              if (uidSnap.connectionState == ConnectionState.waiting) {
+                return Center(
+                  child: CircularProgressIndicator.adaptive(),
+                );
+              }
+
+              if (!uidSnap.hasData || uidSnap.data == null) {
+                return Center(
+                  child: Text('User not found'),
+                );
+              }
+
+              final tappedUserId = uidSnap.data!;
+
+              return Column(
+                children: [
+                  // Messages
+                  Expanded(
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream:
+                          chatService.getMessage(currentUserId, tappedUserId),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Center(
+                            child: CircularProgressIndicator.adaptive(),
+                          );
+                        }
+
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Text(
+                                'Error loading messages: ${snapshot.error}'),
+                          );
+                        }
+
+                        List<QueryDocumentSnapshot> docs =
+                            snapshot.data?.docs ?? [];
+
+                        // Hide just-sent messages until delay completes
+                        if (_isSending && _sendingStartedAt != null) {
+                          docs = docs.where((doc) {
+                            final data = doc.data() as Map<String, dynamic>;
+                            final senderId = data['senderId'] as String?;
+                            final ts = data['timestamp'];
+
+                            if (senderId != currentUserId) return true;
+
+                            if (ts is Timestamp) {
+                              return ts.compareTo(_sendingStartedAt!) < 0;
+                            }
+                            return true;
+                          }).toList();
+                        }
+
+                        if (docs.isEmpty) {
+                          return Center(
+                            child: Text('No messages yet'),
+                          );
+                        }
+
+                        return ListView.builder(
+                          controller: _scrollCtrl,
+                          reverse: true,
+                          padding: EdgeInsets.symmetric(vertical: 8.h),
+                          itemCount: docs.length,
+                          itemBuilder: (context, index) {
+                            final data =
+                                docs[index].data() as Map<String, dynamic>;
+                            final msgText = data['message'] as String?;
+                            final senderId = data['senderId'] as String?;
+                            final timestamp = data['timestamp'] as Timestamp?;
+                            final isMe = senderId == currentUserId;
+
+                            // Determine message status
+                            MessageStatus status = MessageStatus.sent;
+                            if (_isSending &&
+                                _sendingStartedAt != null &&
+                                timestamp != null) {
+                              if (timestamp.compareTo(_sendingStartedAt!) > 0) {
+                                status = MessageStatus.sending;
+                              }
+                            } else if (timestamp != null) {
+                              // Check if message is delivered (older than 2 seconds)
+                              final now = Timestamp.now();
+                              final messageAge =
+                                  now.seconds - timestamp.seconds;
+                              if (messageAge > 2) {
+                                status = MessageStatus.delivered;
+                              }
+                            }
+
+                            return _buildChatBubble(
+                              message: msgText?.isNotEmpty == true
+                                  ? msgText!
+                                  : '[empty]',
+                              isMe: isMe,
+                              timestamp: _formatTimestamp(
+                                  timestamp ?? Timestamp.now()),
+                              status: status,
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  // Modern Composer
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      border: Border(
+                        top: BorderSide(
+                          color: AppColors.base300,
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    child: SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: EdgeInsets.all(16.w),
+                        child: Column(
+                          children: [
+                            // Typing indicator
+                            if (_isSending)
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 16.w, vertical: 8.h),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 20.w,
+                                      height: 20.h,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                AppColors.info),
+                                      ),
+                                    ),
+                                    SizedBox(width: 8.w),
+                                    CustomText(
+                                      text: 'Sending...',
+                                      fontSize: 14.sp,
+                                      color: AppColors.baseContent
+                                          .withOpacity(0.7),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            // Message input
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.base200,
+                                      borderRadius: BorderRadius.circular(25.r),
+                                      border: Border.all(
+                                        color: AppColors.base300,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: TextField(
+                                      controller: _msgCtrl,
+                                      focusNode: _msgFocus,
+                                      enabled: !_isSending,
+                                      textInputAction: TextInputAction.send,
+                                      minLines: 1,
+                                      maxLines: 4,
+                                      onSubmitted: (_) => !_isSending
+                                          ? _send(currentUserId, tappedUserId)
+                                          : null,
+                                      decoration: InputDecoration(
+                                        hintText: 'Type a message...',
+                                        hintStyle: TextStyle(
+                                          color: AppColors.baseContent
+                                              .withOpacity(0.6),
+                                          fontSize: 16.sp,
+                                        ),
+                                        border: InputBorder.none,
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 20.w,
+                                          vertical: 12.h,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 12.w),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: _isSending
+                                        ? AppColors.base300
+                                        : AppColors.info,
+                                    borderRadius: BorderRadius.circular(25.r),
+                                  ),
+                                  child: IconButton(
+                                    icon: _isSending
+                                        ? SizedBox(
+                                            width: 20.w,
+                                            height: 20.h,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                AppColors.infoContent,
+                                              ),
+                                            ),
+                                          )
+                                        : Icon(
+                                            Icons.send_rounded,
+                                            color: AppColors.infoContent,
+                                            size: 20.sp,
+                                          ),
+                                    onPressed: _isSending
+                                        ? null
+                                        : () =>
+                                            _send(currentUserId, tappedUserId),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         );
       },

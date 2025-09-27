@@ -50,10 +50,14 @@ class ChatService {
   }
 
   // send message
-  Future<void> sendMessage(String receiverId, message) async {
-    final String currentUserId = _firebaseAuth.currentUser!.uid;
+  Future<void> sendMessage(
+      String currentUserId, String receiverId, message) async {
     final String? currentUserEmail = _firebaseAuth.currentUser!.email;
     final Timestamp timestamp = Timestamp.now();
+
+    print(
+        'ChatService: sendMessage called with currentUserId: $currentUserId, receiverId: $receiverId');
+    print('ChatService: Message content: $message');
 
     MessageModel newMessage = MessageModel(
       senderId: currentUserId,
@@ -68,12 +72,22 @@ class ChatService {
     ids.sort(); // sort the ids (this ensure the chatroomID is the same for any 2 people)
     String chatRoomID = ids.join('_');
 
+    print('ChatService: Sending message from $currentUserId to $receiverId');
+    print('ChatService: Chat room ID: $chatRoomID');
+    print('ChatService: Message model: ${newMessage.toMap()}');
+
     // add new message to database
-    await _firestore
-        .collection("chat_rooms")
-        .doc(chatRoomID)
-        .collection("messages")
-        .add(newMessage.toMap());
+    try {
+      final docRef = await _firestore
+          .collection("chat_rooms")
+          .doc(chatRoomID)
+          .collection("messages")
+          .add(newMessage.toMap());
+      print('ChatService: Message stored successfully with ID: ${docRef.id}');
+    } catch (e) {
+      print('ChatService: Error storing message: $e');
+      rethrow;
+    }
   }
 
   // get message
@@ -82,6 +96,9 @@ class ChatService {
     List<String> ids = [userID, otherUserID];
     ids.sort(); // sort the ids (this ensure the chatroomID is the same for any 2 people)
     String chatRoomID = ids.join('_');
+
+    print('ChatService: Getting messages for users $userID and $otherUserID');
+    print('ChatService: Chat room ID: $chatRoomID');
 
     return _firestore
         .collection("chat_rooms")
